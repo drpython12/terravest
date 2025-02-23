@@ -2,8 +2,7 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
 
-import 'bootstrap/dist/css/bootstrap.min.css';
-import 'bootstrap';
+import './styles.css'; // Import Tailwind CSS file
 
 const app = createApp(App)
 

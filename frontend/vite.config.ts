@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import tailwindcss from '@tailwindcss/vite'
 import vue from "@vitejs/plugin-vue";
 import path from 'path';
 
@@ -12,7 +13,7 @@ export default defineConfig(({ mode }) => ({
         emptyOutDir: true,
         outDir: "../api/static/api/spa",
     },
-    plugins: [vue()],
+    plugins: [vue(), tailwindcss(),],
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './src'),
