@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+<template>
+  <div id="app" class="bg-white text-gray-900">
+    <!-- Fixed Header -->
+    <header class="fixed top-0 left-0 right-0 z-50 bg-white bg-opacity-90 shadow">
+      <div class="container mx-auto flex items-center justify-between p-4">
+        <router-link to="/" class="flex items-center">
+          <img :src="logo" alt="TerraVest Logo" class="h-8 w-auto">
+          <span class="ml-2 text-xl font-bold">TerraVest</span>
+        </router-link>
+        <nav>
+          <ul class="flex space-x-8">
+            <li><a href="#" class="hover:text-gray-700">Home</a></li>
+            <li><a href="#" class="hover:text-gray-700">Features</a></li>
+            <li><a href="#" class="hover:text-gray-700">About</a></li>
+            <li><a href="#" class="hover:text-gray-700">Contact</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Hero Section with Background Image -->
+    <section class="hero relative flex items-center justify-center h-screen overflow-hidden">
+      <div class="absolute inset-0">
+        <img src="@/assets/home-page-background.jpg" alt="Background" class="object-cover w-full h-full">
+      </div>
+      <div class="relative z-10 text-center px-4">
+        <h1 class="text-5xl font-semibold text-white mb-4">
+          Empower Your Sustainable Investments
+        </h1>
+        <p class="text-xl text-white mb-8">
+          Harness real-time insights and transparent reporting for smarter ESG decisions.
+        </p>
+        <button class="bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-full px-10 py-3">
+          Get Started
+        </button>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features py-20 bg-gray-100">
+      <div class="container mx-auto px-4">
+        <!-- Feature 1: Real-Time Insights -->
+        <div class="flex flex-col md:flex-row items-center mb-20">
+          <div class="md:w-1/2">
+            <img src="@/assets/real-time-insights.jpg" alt="Real-Time Insights" class="w-full rounded-lg shadow-lg">
+          </div>
+          <div class="md:w-1/2 md:pl-12 mt-8 md:mt-0">
+            <h2 class="text-3xl font-semibold mb-4">Real-Time Insights</h2>
+            <p class="text-lg">
+              Experience dynamic ESG analysis with up-to-date data and sentiment tracking.
+            </p>
+          </div>
+        </div>
+        <!-- Feature 2: Transparent Reporting -->
+        <div class="flex flex-col md:flex-row items-center mb-20">
+          <div class="md:w-1/2 md:order-2">
+            <img src="@/assets/transparent-reporting.jpg" alt="Transparent Reporting" class="w-full rounded-lg shadow-lg">
+          </div>
+          <div class="md:w-1/2 md:pr-12 mt-8 md:mt-0 md:order-1">
+            <h2 class="text-3xl font-semibold mb-4">Transparent Reporting</h2>
+            <p class="text-lg">
+              Gain clarity with detailed reports and AI-generated narrative explanations.
+            </p>
+          </div>
+        </div>
+        <!-- Feature 3: Custom Recommendations -->
+        <div class="flex flex-col md:flex-row items-center">
+          <div class="md:w-1/2">
+            <img src="@/assets/custom-recommendations.jpg" alt="Custom Recommendations" class="w-full rounded-lg shadow-lg">
+          </div>
+          <div class="md:w-1/2 md:pl-12 mt-8 md:mt-0">
+            <h2 class="text-3xl font-semibold mb-4">Custom Recommendations</h2>
+            <p class="text-lg">
+              Tailor your investment strategy with personalized recommendations that align with your values.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-8 bg-white">
+      <div class="container mx-auto text-center text-gray-600">
+        <p>&copy; 2024 TerraVest. All rights reserved.</p>
+      </div>
+    </footer>
+  </div>
+</template>
+
+<script>
+import logo from '@/assets/terravest-logo.png';
+
+export default {
+  name: 'App',
+  data() {
+    return {
+      logo,
+    };
+  },
+};
+</script>
