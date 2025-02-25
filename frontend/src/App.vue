@@ -21,7 +21,7 @@
     <!-- Footer -->
     <footer class="footer">
       <div class="container footer-container">
-        <p>&copy; 2024 TerraVest. All rights reserved.</p>
+        <p>&copy; 2025 TerraVest. All rights reserved.</p>
       </div>
     </footer>
   </div>
