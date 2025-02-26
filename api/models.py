@@ -2,6 +2,9 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 class User(AbstractUser):
+    """
+    Custom user model extending the default Django AbstractUser.
+    """
     first_name = models.CharField(max_length=30)
     middle_name = models.CharField(max_length=30, blank=True, null=True)
     last_name = models.CharField(max_length=30)
@@ -26,4 +29,7 @@ class User(AbstractUser):
     )
 
     def __str__(self):
+        """
+        Return a string representation of the user, using the email.
+        """
         return self.email

@@ -1,17 +1,20 @@
-from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.auth.hashers import make_password
 from django.contrib.auth import authenticate, login
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.shortcuts import render
-import re
-from datetime import datetime
-from .models import User
 from django.views.decorators.csrf import csrf_exempt
+from datetime import datetime
 import json
+import re
+from .models import User
 
 @csrf_exempt
 def signup_view(request):
+    """
+    Handle user signup requests.
+    """
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -40,8 +43,12 @@ def signup_view(request):
 
 
 def validate_signup_data(first_name, last_name, country, date_of_birth, email, password, confirm_password):
+    """
+    Validate the signup data provided by the user.
+    """
     errors = {}
 
+    # Check for missing fields
     if not first_name:
         errors['first_name'] = 'First name is required.'
     if not last_name:
@@ -57,21 +64,26 @@ def validate_signup_data(first_name, last_name, country, date_of_birth, email, p
     if not confirm_password:
         errors['confirm_password'] = 'Confirm password is required.'
 
+    # Check if email is already registered
     if User.objects.filter(email=email).exists():
         errors['email'] = 'Email is already registered.'
 
+    # Validate email format
     try:
         validate_email(email)
     except ValidationError:
         errors['email'] = 'Invalid email format.'
 
+    # Validate password format
     password_pattern = re.compile(r'^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$')
     if not password_pattern.match(password):
         errors['password'] = 'Password must contain at least 8 characters, a number, and a special character.'
 
+    # Check if passwords match
     if password != confirm_password:
         errors['confirm_password'] = 'Passwords do not match.'
 
+    # Validate age (must be 18+)
     try:
         dob = datetime.strptime(date_of_birth, "%Y-%m-%d")
         today = datetime.today()
@@ -85,6 +97,9 @@ def validate_signup_data(first_name, last_name, country, date_of_birth, email, p
 
 
 def create_user(first_name, middle_name, last_name, country, date_of_birth, email, password):
+    """
+    Create a new user with the provided data.
+    """
     user = User(
         first_name=first_name,
         middle_name=middle_name,
@@ -99,6 +114,9 @@ def create_user(first_name, middle_name, last_name, country, date_of_birth, emai
 
 
 def login_view(request):
+    """
+    Handle user login requests.
+    """
     if request.method == 'POST':
         email = request.POST.get('email')
         password = request.POST.get('password')
