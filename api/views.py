@@ -1,5 +1,128 @@
-from django.http import HttpResponse, HttpRequest, JsonResponse
+from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.auth import authenticate, login
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
+from django.http import JsonResponse
 from django.shortcuts import render
+import re
+from datetime import datetime
+from .models import User
+from django.views.decorators.csrf import csrf_exempt
+import json
 
-def main_spa(request: HttpRequest) -> HttpResponse:
-    return render(request, 'api/spa/index.html', {})
+@csrf_exempt
+def signup_view(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'errors': 'Invalid JSON'}, status=400)
+
+        print("Received POST request with data:", data)
+        
+        first_name = data.get('first_name')
+        middle_name = data.get('middle_name', '')
+        last_name = data.get('last_name')
+        country = data.get('country')
+        date_of_birth = data.get('date_of_birth')
+        email = data.get('email')
+        password = data.get('password')
+        confirm_password = data.get('confirm_password')
+
+        errors = {}
+
+        # Check for missing fields
+        if not first_name:
+            errors['first_name'] = 'First name is required.'
+        if not last_name:
+            errors['last_name'] = 'Last name is required.'
+        if not country:
+            errors['country'] = 'Country is required.'
+        if not date_of_birth:
+            errors['date_of_birth'] = 'Date of birth is required.'
+        if not email:
+            errors['email'] = 'Email is required.'
+        if not password:
+            errors['password'] = 'Password is required.'
+        if not confirm_password:
+            errors['confirm_password'] = 'Confirm password is required.'
+
+        # If any errors exist, return them
+        if errors:
+            return JsonResponse({'success': False, 'errors': errors}, status=400)
+
+        # Check if email is already in use
+        if User.objects.filter(email=email).exists():
+            errors['email'] = 'Email is already registered.'
+
+        # Validate email format
+        try:
+            validate_email(email)
+        except ValidationError:
+            errors['email'] = 'Invalid email format.'
+
+        # Password validation
+        password_pattern = re.compile(r'^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$')
+        if not password_pattern.match(password):
+            errors['password'] = 'Password must contain at least 8 characters, a number, and a special character.'
+
+        # Confirm password validation
+        if password != confirm_password:
+            errors['confirm_password'] = 'Passwords do not match.'
+
+        # Age validation (must be 18+)
+        try:
+            dob = datetime.strptime(date_of_birth, "%Y-%m-%d")
+            today = datetime.today()
+            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+            if age < 18:
+                errors['dob'] = 'You must be at least 18 years old to sign up.'
+        except ValueError:
+            errors['dob'] = 'Invalid date format.'
+
+        # If any errors exist, return them
+        if errors:
+            return JsonResponse({'success': False, 'errors': errors}, status=400)
+
+        # Create new user
+        user = User(
+            first_name=first_name,
+            middle_name=middle_name,
+            last_name=last_name,
+            country=country,
+            date_of_birth=date_of_birth,
+            email=email,
+            password=make_password(password),
+        )
+        user.save()
+
+        return JsonResponse({'success': True, 'message': 'Account successfully created! Redirecting...'})
+    return render(request, 'signup.html')
+
+
+def login_view(request):
+    if request.method == 'POST':
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+
+        errors = {}
+
+        # Validate email format
+        try:
+            validate_email(email)
+        except ValidationError:
+            errors['email'] = 'Invalid email format.'
+
+        # Authenticate user
+        user = authenticate(request, username=email, password=password)
+        if user is not None:
+            login(request, user)
+            return JsonResponse({'success': True, 'message': 'Login successful! Redirecting...'})
+        else:
+            errors['login'] = 'Invalid email or password.'
+
+        # If any errors exist, return them
+        if errors:
+            return JsonResponse({'success': False, 'errors': errors}, status=400)
+
+    return render(request, 'login.html')

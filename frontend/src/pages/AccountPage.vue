@@ -6,8 +6,9 @@
       type="text" 
       class="input-box" 
       placeholder="Email or Phone Number" 
-      @blur="promptPassword"
+      @blur="validateEmail"
     />
+    <p v-if="emailError" class="error-message">⚠ Please enter a valid email address.</p>
     <input 
       v-if="showPassword" 
       v-model="password" 
@@ -35,12 +36,15 @@ export default {
       password: "",
       rememberMe: false,
       error: false,
-      showPassword: false
+      showPassword: false,
+      emailError: false
     };
   },
   methods: {
-    promptPassword() {
-      if (this.email.trim() !== "") {
+    validateEmail() {
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      this.emailError = !emailPattern.test(this.email);
+      if (!this.emailError && this.email.trim() !== "") {
         this.showPassword = true;
       }
     }
@@ -79,13 +83,10 @@ body {
   margin-bottom: 10px;
 }
 .error-message {
-  color: white;
-  background: #333;
-  display: inline-block;
-  margin-top: 8px;
-  padding: 4px 8px;
-  border-radius: 4px;
+  color: red;
   font-size: 14px;
+  margin-top: 5px;
+  text-align: left;
 }
 .remember-me {
   display: flex;

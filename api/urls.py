@@ -15,10 +15,11 @@ Including another URLconf
 """
 from django.conf import settings
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import path
 from django.http import HttpResponse
-from .views import main_spa
+from .views import signup_view, login_view
 
 urlpatterns = [
-    path('', main_spa),
+    path('signup/', signup_view, name='signup'),  # Ensure this matches the URL in the frontend
+    path('login/', login_view, name='login'),
 ]
