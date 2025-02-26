@@ -38,5 +38,13 @@ export default defineComponent({
 </script>
 
 <style scoped>
-/* Add any home page–specific styles here */
+h2 {
+  font-size: 1.75rem;
+  color: white;
+}
+.features {
+  background: black;
+  padding: 50px 0;
+  text-align: center;
+}
 </style>
