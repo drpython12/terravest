@@ -12,15 +12,15 @@
     <p v-if="nameError" class="error-message">⚠ First and last name are required.</p>
     <input v-model="middleName" type="text" class="input-box" placeholder="Middle Name(s) (Optional)" />
     <div class="input-box select-box">
-      <label class="label">Country/Region</label>
-      <select v-model="country" class="select-input" required>
+      <label class="label" for="country">Country/Region</label>
+      <select id="country" v-model="country" class="select-input" required>
         <option>United Kingdom</option>
         <option>United States</option>
         <option>Canada</option>
         <option>Australia</option>
       </select>
     </div>
-    <label class="label dob-label">Date of birth</label>
+    <label class="label dob-label" for="dobDay">Date of birth</label>
     <div class="dob-container">
       <select v-model="dobDay" class="dob-box" @blur="validateDOB" required>
         <option value="" disabled>Day</option>

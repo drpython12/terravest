@@ -29,75 +29,73 @@ def signup_view(request):
         password = data.get('password')
         confirm_password = data.get('confirm_password')
 
-        errors = {}
+        errors = validate_signup_data(first_name, last_name, country, date_of_birth, email, password, confirm_password)
 
-        # Check for missing fields
-        if not first_name:
-            errors['first_name'] = 'First name is required.'
-        if not last_name:
-            errors['last_name'] = 'Last name is required.'
-        if not country:
-            errors['country'] = 'Country is required.'
-        if not date_of_birth:
-            errors['date_of_birth'] = 'Date of birth is required.'
-        if not email:
-            errors['email'] = 'Email is required.'
-        if not password:
-            errors['password'] = 'Password is required.'
-        if not confirm_password:
-            errors['confirm_password'] = 'Confirm password is required.'
-
-        # If any errors exist, return them
         if errors:
             return JsonResponse({'success': False, 'errors': errors}, status=400)
 
-        # Check if email is already in use
-        if User.objects.filter(email=email).exists():
-            errors['email'] = 'Email is already registered.'
-
-        # Validate email format
-        try:
-            validate_email(email)
-        except ValidationError:
-            errors['email'] = 'Invalid email format.'
-
-        # Password validation
-        password_pattern = re.compile(r'^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$')
-        if not password_pattern.match(password):
-            errors['password'] = 'Password must contain at least 8 characters, a number, and a special character.'
-
-        # Confirm password validation
-        if password != confirm_password:
-            errors['confirm_password'] = 'Passwords do not match.'
-
-        # Age validation (must be 18+)
-        try:
-            dob = datetime.strptime(date_of_birth, "%Y-%m-%d")
-            today = datetime.today()
-            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-            if age < 18:
-                errors['dob'] = 'You must be at least 18 years old to sign up.'
-        except ValueError:
-            errors['dob'] = 'Invalid date format.'
-
-        # If any errors exist, return them
-        if errors:
-            return JsonResponse({'success': False, 'errors': errors}, status=400)
-
-        # Create new user
-        user = User(
-            first_name=first_name,
-            middle_name=middle_name,
-            last_name=last_name,
-            country=country,
-            date_of_birth=date_of_birth,
-            email=email,
-            password=make_password(password),
-        )
-        user.save()
-
+        create_user(first_name, middle_name, last_name, country, date_of_birth, email, password)
         return JsonResponse({'success': True, 'message': 'Account successfully created! Redirecting...'})
     return render(request, 'signup.html')
+
+
+def validate_signup_data(first_name, last_name, country, date_of_birth, email, password, confirm_password):
+    errors = {}
+
+    if not first_name:
+        errors['first_name'] = 'First name is required.'
+    if not last_name:
+        errors['last_name'] = 'Last name is required.'
+    if not country:
+        errors['country'] = 'Country is required.'
+    if not date_of_birth:
+        errors['date_of_birth'] = 'Date of birth is required.'
+    if not email:
+        errors['email'] = 'Email is required.'
+    if not password:
+        errors['password'] = 'Password is required.'
+    if not confirm_password:
+        errors['confirm_password'] = 'Confirm password is required.'
+
+    if User.objects.filter(email=email).exists():
+        errors['email'] = 'Email is already registered.'
+
+    try:
+        validate_email(email)
+    except ValidationError:
+        errors['email'] = 'Invalid email format.'
+
+    password_pattern = re.compile(r'^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$')
+    if not password_pattern.match(password):
+        errors['password'] = 'Password must contain at least 8 characters, a number, and a special character.'
+
+    if password != confirm_password:
+        errors['confirm_password'] = 'Passwords do not match.'
+
+    try:
+        dob = datetime.strptime(date_of_birth, "%Y-%m-%d")
+        today = datetime.today()
+        age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+        if age < 18:
+            errors['dob'] = 'You must be at least 18 years old to sign up.'
+    except ValueError:
+        errors['dob'] = 'Invalid date format.'
+
+    return errors
+
+
+def create_user(first_name, middle_name, last_name, country, date_of_birth, email, password):
+    user = User(
+        first_name=first_name,
+        middle_name=middle_name,
+        last_name=last_name,
+        country=country,
+        date_of_birth=date_of_birth,
+        email=email,
+        password=make_password(password),
+    )
+    user.save()
+    return user
 
 
 def login_view(request):

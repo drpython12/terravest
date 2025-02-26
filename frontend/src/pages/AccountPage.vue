@@ -32,20 +32,21 @@
 export default {
   data() {
     return {
-      email: "",
-      password: "",
-      rememberMe: false,
-      error: false,
-      showPassword: false,
-      emailError: false
+      email: "", // User's email or phone number
+      password: "", // User's password
+      rememberMe: false, // Remember me checkbox state
+      error: false, // Error state for form validation
+      showPassword: false, // State to show/hide password input
+      emailError: false // Error state for email validation
     };
   },
   methods: {
+    // Validate the email format
     validateEmail() {
       const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       this.emailError = !emailPattern.test(this.email);
       if (!this.emailError && this.email.trim() !== "") {
-        this.showPassword = true;
+        this.showPassword = true; // Show password input if email is valid
       }
     }
   }
@@ -53,6 +54,7 @@ export default {
 </script>
 
 <style scoped>
+/* Body styling */
 body {
   display: flex;
   flex-direction: column;
@@ -60,6 +62,8 @@ body {
   min-height: 100vh;
   align-items: center;
 }
+
+/* Container styling */
 .container {
   text-align: center;
   background: white;
@@ -67,12 +71,16 @@ body {
   border-radius: 10px;
   width: 500px;
 }
+
+/* Title styling */
 .title {
   font-size: 22px;
   font-weight: bold;
   font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;
   margin-bottom: 20px;
 }
+
+/* Input box styling */
 .input-box {
   width: 100%;
   padding: 12px;
@@ -82,22 +90,30 @@ body {
   outline: none;
   margin-bottom: 10px;
 }
+
+/* Error message styling */
 .error-message {
   color: red;
   font-size: 14px;
   margin-top: 5px;
   text-align: left;
 }
+
+/* Remember me checkbox styling */
 .remember-me {
   display: flex;
   justify-content: center;
   align-items: center;
   margin-top: 15px;
 }
+
+/* Links styling */
 .links {
   margin-top: 15px;
   font-size: 14px;
 }
+
+/* Links and router-link styling */
 .links a, .links router-link {
   color: #007aff;
   text-decoration: none;
