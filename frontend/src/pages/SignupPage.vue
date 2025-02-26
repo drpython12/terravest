@@ -162,7 +162,7 @@ export default {
       console.log("Sending data to backend:", signupData);
 
       // Send the data to the backend using Axios
-      axios.post(`http://localhost:8000/signup/`, signupData, {
+      axios.post(`http://localhost:8000/account/signup/`, signupData, {
         headers: {
           'X-CSRFToken': Cookies.get('csrftoken'), // Include the CSRF token in the headers
           'Content-Type': 'application/json' // Ensure the content type is JSON

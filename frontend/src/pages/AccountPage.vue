@@ -1,22 +1,36 @@
 <template>
   <div class="container">
     <h2 class="title">Sign in to the TerraVest Portal</h2>
-    <input 
-      v-model="email" 
-      type="text" 
-      class="input-box" 
-      placeholder="Email or Phone Number" 
-      @blur="validateEmail"
-    />
+    
+    <!-- Email input with arrow -->
+    <div class="input-container">
+      <input 
+        v-model="email" 
+        type="text" 
+        class="input-box" 
+        placeholder="Email or Phone Number" 
+        @blur="validateEmail"
+      />
+      <span v-if="showEmailArrow" class="arrow-icon" @click="checkUserExists">➜</span>
+    </div>
     <p v-if="emailError" class="error-message">⚠ Please enter a valid email address.</p>
-    <input 
-      v-if="showPassword" 
-      v-model="password" 
-      type="password" 
-      class="input-box" 
-      placeholder="Password"
-    />
-    <div v-if="error" class="error-message">Please fill in this field.</div>
+    <p v-if="userNotFoundError" class="error-message">⚠ This email is not registered. <router-link to="/signup">Sign up now.</router-link></p>
+
+    <!-- Password input with arrow -->
+    <div class="input-container" v-if="showPassword">
+      <input 
+        v-model="password" 
+        type="password" 
+        class="input-box" 
+        placeholder="Password"
+        @blur="validatePassword"
+      />
+      <span v-if="showPasswordArrow" class="arrow-icon" @click="loginUser">➜</span>
+    </div>
+    <p v-if="passwordError" class="error-message">⚠ Password must be entered.</p>
+    <p v-if="loginError" class="error-message">⚠ {{ loginError }}</p>
+    <p v-if="successMessage" class="success-message">🎉 {{ successMessage }}</p>
+
     <div class="remember-me">
       <input type="checkbox" id="remember" v-model="rememberMe" />
       <label for="remember">&nbsp;&nbsp;Remember me</label>
@@ -29,25 +43,71 @@
 </template>
 
 <script>
+import axios from "axios";
+
 export default {
   data() {
     return {
-      email: "", // User's email or phone number
-      password: "", // User's password
-      rememberMe: false, // Remember me checkbox state
-      error: false, // Error state for form validation
-      showPassword: false, // State to show/hide password input
-      emailError: false // Error state for email validation
+      email: "", 
+      password: "", 
+      rememberMe: false, 
+      showPassword: false, 
+      showEmailArrow: true, 
+      showPasswordArrow: false, 
+      emailError: false,
+      passwordError: false,
+      userNotFoundError: false,
+      loginError: "",
+      successMessage: ""
     };
   },
   methods: {
-    // Validate the email format
     validateEmail() {
       const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       this.emailError = !emailPattern.test(this.email);
-      if (!this.emailError && this.email.trim() !== "") {
-        this.showPassword = true; // Show password input if email is valid
-      }
+      this.showEmailArrow = !this.emailError && this.email.trim() !== "";
+    },
+    checkUserExists() {
+      axios.post(`http://localhost:8000/account/check-user/`, { email: this.email })
+        .then(response => {
+          if (response.data.exists) {
+            this.showPassword = true;
+            this.userNotFoundError = false;
+            this.showEmailArrow = false;
+            this.showPasswordArrow = true;
+          } else {
+            this.userNotFoundError = true;
+            this.showPassword = false;
+          }
+        })
+        .catch(error => {
+          console.error("User check error:", error);
+          this.userNotFoundError = true;
+        });
+    },
+    validatePassword() {
+      this.passwordError = !this.password.trim();
+    },
+    loginUser() {
+      this.loginError = "";
+      this.successMessage = "";
+
+      if (this.passwordError) return;
+
+      axios.post(`http://localhost:8000/account/login/`, { email: this.email, password: this.password })
+        .then(response => {
+          if (response.data.success) {
+            this.successMessage = "Login successful! Redirecting...";
+            setTimeout(() => window.location.href = "/dashboard", 2000);
+          }
+        })
+        .catch(error => {
+          if (error.response && error.response.data.errors) {
+            this.loginError = error.response.data.errors.login || "Invalid email or password.";
+          } else {
+            this.loginError = "Login failed. Please try again.";
+          }
+        });
     }
   }
 };
@@ -117,5 +177,22 @@ body {
 .links a, .links router-link {
   color: #007aff;
   text-decoration: none;
+}
+
+/* Input and arrow container */
+.input-container {
+  position: relative;
+  width: 100%;
+}
+
+/* Arrow icon styling */
+.arrow-icon {
+  position: absolute;
+  right: 15px;
+  top: 45%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  font-size: 20px;
+  color: #007aff;
 }
 </style>

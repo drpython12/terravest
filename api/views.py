@@ -113,6 +113,26 @@ def create_user(first_name, middle_name, last_name, country, date_of_birth, emai
     return user
 
 
+@csrf_exempt
+def check_user_exists(request):
+    """
+    Check if a user exists by email.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            email = data.get('email')
+            if not email:
+                return JsonResponse({'exists': False, 'error': 'Email is required'}, status=400)
+
+            exists = User.objects.filter(email=email).exists()
+            return JsonResponse({'exists': exists})
+        except json.JSONDecodeError:
+            return JsonResponse({'exists': False, 'error': 'Invalid JSON'}, status=400)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+
 def login_view(request):
     """
     Handle user login requests.
