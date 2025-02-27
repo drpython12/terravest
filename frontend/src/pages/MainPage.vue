@@ -13,15 +13,15 @@
     <section class="features">
       <div class="container features-container">
         <div class="feature">
-          <h2>Real-Time Insights</h2>
+          <h2 class="feature-heading">Real-Time Insights</h2>
           <p>Live sentiment analysis and dynamic ESG scores to keep you ahead.</p>
         </div>
         <div class="feature">
-          <h2>Transparent Reporting</h2>
+          <h2 class="feature-heading">Transparent Reporting</h2>
           <p>Clear, narrative explanations that empower informed decisions.</p>
         </div>
         <div class="feature">
-          <h2>Custom Recommendations</h2>
+          <h2 class="feature-heading">Custom Recommendations</h2>
           <p>Tailored strategies to match your unique investment goals.</p>
         </div>
       </div>
@@ -38,7 +38,7 @@ export default defineComponent({
 </script>
 
 <style scoped>
-h2 {
+.feature-heading {
   font-size: 1.75rem;
   color: white;
 }
