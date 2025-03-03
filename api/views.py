@@ -1,5 +1,5 @@
 from django.contrib.auth.hashers import make_password
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
@@ -139,37 +139,41 @@ def login_view(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
+            email = data.get('email')
+            password = data.get('password')
+
+            errors = {}
+
+            # Validate email format
+            try:
+                validate_email(email)
+            except ValidationError:
+                errors['email'] = 'Invalid email format.'
+
+            # Authenticate user
+            user = authenticate(request, username=email, password=password)
+            if user is not None:
+                login(request, user)
+                # Check if user has completed preferences
+                if not user.preferences_completed:
+                    return JsonResponse({'success': True, 'redirect': '/account/preferences/'})
+                return JsonResponse({'success': True, 'redirect': '/dashboard/'})
+            else:
+                errors['login'] = 'Invalid email or password.'
+
+            # If any errors exist, return them
+            if errors:
+                return JsonResponse({'success': False, 'errors': errors}, status=400)
+
         except json.JSONDecodeError:
             return JsonResponse({'success': False, 'errors': 'Invalid JSON'}, status=400)
 
-        email = data.get('email')
-        password = data.get('password')
-
-        errors = {}
-
-        # Validate email format
-        try:
-            validate_email(email)
-        except ValidationError:
-            errors['email'] = 'Invalid email format.'
-
-        # Check if user exists
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            errors['login'] = 'Invalid email or password.'
-            return JsonResponse({'success': False, 'errors': errors}, status=400)
-
-        # Authenticate user
-        user = authenticate(request, username=email, password=password)
-        if user is not None:
-            login(request, user)
-            return JsonResponse({'success': True, 'message': 'Login successful! Redirecting...'})
-        else:
-            errors['login'] = 'Invalid email or password.'
-
-        # If any errors exist, return them
-        if errors:
-            return JsonResponse({'success': False, 'errors': errors}, status=400)
-
     return render(request, 'login.html')
+
+
+def logout_view(request):
+    """
+    Handle user logout.
+    """
+    logout(request)
+    return JsonResponse({'success': True, 'redirect': '/account/'})

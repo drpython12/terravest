@@ -13,6 +13,7 @@ class User(AbstractUser):
     date_of_birth = models.DateField()
     email = models.EmailField(unique=True)
     password = models.CharField(max_length=128)
+    preferences_completed = models.BooleanField(default=False)
 
     USERNAME_FIELD = 'email'  # Use email as the username field
     REQUIRED_FIELDS = ['first_name', 'last_name', 'country', 'date_of_birth']

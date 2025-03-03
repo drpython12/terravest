@@ -10,6 +10,8 @@
           <a href="#" aria-label="Features">Features</a>
           <a href="#" aria-label="About">About</a>
           <a href="#" aria-label="Contact">Contact</a>
+          <router-link to="/dashboard" v-if="isLoggedIn">Dashboard</router-link>
+          <a href="#" @click="logout" v-if="isLoggedIn">Logout</a> <!-- Added logout option -->
           <router-link to="/account" aria-label="Account">Account</router-link>
         </nav>
       </div>
@@ -49,6 +51,3 @@ export default {
   }
 };
 </script>
-
-<style>
-</style>
