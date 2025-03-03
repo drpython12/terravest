@@ -26,15 +26,32 @@
         </div>
       </div>
     </section>
+    <div v-if="loading">Loading...</div>
+    <div v-else>{{ title }}</div>
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script>
+import axios from 'axios';
 
-export default defineComponent({
-  name: 'MainPage',
-});
+export default {
+  data() {
+    return {
+      title: '',
+      loading: true,
+    };
+  },
+  async created() {
+    try {
+      const response = await axios.get('/api/title');
+      this.title = response.data;
+    } catch (error) {
+      console.error(error);
+    } finally {
+      this.loading = false;
+    }
+  }
+};
 </script>
 
 <style scoped>

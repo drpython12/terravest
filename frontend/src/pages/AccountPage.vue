@@ -10,6 +10,7 @@
         class="input-box" 
         placeholder="Email or Phone Number" 
         @blur="validateEmail"
+        aria-label="Email or Phone Number"
       />
       <span v-if="showEmailArrow" class="arrow-icon" @click="checkUserExists">➜</span>
     </div>
@@ -24,6 +25,7 @@
         class="input-box" 
         placeholder="Password"
         @blur="validatePassword"
+        aria-label="Password"
       />
       <span v-if="showPasswordArrow" class="arrow-icon" @click="loginUser">➜</span>
     </div>
@@ -58,7 +60,8 @@ export default {
       passwordError: false,
       userNotFoundError: false,
       loginError: "",
-      successMessage: ""
+      successMessage: "",
+      loading: false
     };
   },
   methods: {
@@ -67,28 +70,30 @@ export default {
       this.emailError = !emailPattern.test(this.email);
       this.showEmailArrow = !this.emailError && this.email.trim() !== "";
     },
-    checkUserExists() {
-      axios.post(`http://localhost:8000/account/check-user/`, { email: this.email })
-        .then(response => {
-          if (response.data.exists) {
-            this.showPassword = true;
-            this.userNotFoundError = false;
-            this.showEmailArrow = false;
-            this.showPasswordArrow = true;
-          } else {
-            this.userNotFoundError = true;
-            this.showPassword = false;
-          }
-        })
-        .catch(error => {
-          console.error("User check error:", error);
+    async checkUserExists() {
+      this.loading = true;
+      try {
+        const response = await axios.post(`http://localhost:8000/account/check-user/`, { email: this.email });
+        if (response.data.exists) {
+          this.showPassword = true;
+          this.userNotFoundError = false;
+          this.showEmailArrow = false;
+          this.showPasswordArrow = true;
+        } else {
           this.userNotFoundError = true;
-        });
+          this.showPassword = false;
+        }
+      } catch (error) {
+        console.error("User check error:", error);
+        this.userNotFoundError = true;
+      } finally {
+        this.loading = false;
+      }
     },
     validatePassword() {
       this.passwordError = !this.password.trim();
     },
-    loginUser() {
+    async loginUser() {
       this.loginError = "";
       this.successMessage = "";
 
@@ -98,21 +103,23 @@ export default {
 
       if (this.emailError || this.passwordError) return;
 
-      axios.post(`http://localhost:8000/account/login/`, { email: this.email, password: this.password })
-        .then(response => {
-          if (response.data.success) {
-            this.successMessage = "Login successful! Redirecting...";
-            setTimeout(() => window.location.href = "/dashboard", 2000);
-          }
-        })
-        .catch(error => {
-          console.error("Login error:", error); // Add console log for debugging
-          if (error.response && error.response.data.errors) {
-            this.loginError = error.response.data.errors.login || "Invalid email or password.";
-          } else {
-            this.loginError = "Login failed. Please try again.";
-          }
-        });
+      this.loading = true;
+      try {
+        const response = await axios.post(`http://localhost:8000/account/login/`, { email: this.email, password: this.password });
+        if (response.data.success) {
+          this.successMessage = "Login successful! Redirecting...";
+          setTimeout(() => window.location.href = "/dashboard", 2000);
+        }
+      } catch (error) {
+        console.error("Login error:", error); // Add console log for debugging
+        if (error.response && error.response.data.errors) {
+          this.loginError = error.response.data.errors.login || "Invalid email or password.";
+        } else {
+          this.loginError = "Login failed. Please try again.";
+        }
+      } finally {
+        this.loading = false;
+      }
     }
   }
 };

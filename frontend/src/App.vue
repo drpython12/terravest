@@ -7,10 +7,10 @@
           <span class="logo-text">TerraVest</span>
         </router-link>
         <nav class="nav">
-          <a href="#">Features</a>
-          <a href="#">About</a>
-          <a href="#">Contact</a>
-          <router-link to="/account">Account</router-link>
+          <a href="#" aria-label="Features">Features</a>
+          <a href="#" aria-label="About">About</a>
+          <a href="#" aria-label="Contact">Contact</a>
+          <router-link to="/account" aria-label="Account">Account</router-link>
         </nav>
       </div>
     </header>
@@ -28,6 +28,7 @@
 </template>
 
 <script>
+import axios from 'axios';
 import logo from '@/assets/terravest-logo.png';
 
 export default {
@@ -35,11 +36,19 @@ export default {
   data() {
     return {
       logo,
+      appData: null,
     };
   },
+  async created() {
+    try {
+      const response = await axios.get('/api/app-data');
+      this.appData = response.data;
+    } catch (error) {
+      console.error(error);
+    }
+  }
 };
 </script>
 
-<style scoped>
-/* You can add header/footer styling here if needed */
+<style>
 </style>

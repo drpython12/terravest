@@ -21,8 +21,6 @@ def signup_view(request):
         except json.JSONDecodeError:
             return JsonResponse({'success': False, 'errors': 'Invalid JSON'}, status=400)
 
-        print("Received POST request with data:", data)
-        
         first_name = data.get('first_name')
         middle_name = data.get('middle_name', '')
         last_name = data.get('last_name')
@@ -141,7 +139,6 @@ def login_view(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            print("Received POST request with data:", data)  # Add logging
         except json.JSONDecodeError:
             return JsonResponse({'success': False, 'errors': 'Invalid JSON'}, status=400)
 
@@ -159,10 +156,8 @@ def login_view(request):
         # Check if user exists
         try:
             user = User.objects.get(email=email)
-            print("User found:", user)  # Add logging
         except User.DoesNotExist:
             errors['login'] = 'Invalid email or password.'
-            print("User does not exist")  # Add logging
             return JsonResponse({'success': False, 'errors': errors}, status=400)
 
         # Authenticate user
@@ -172,13 +167,9 @@ def login_view(request):
             return JsonResponse({'success': True, 'message': 'Login successful! Redirecting...'})
         else:
             errors['login'] = 'Invalid email or password.'
-            print("Authentication failed")  # Add logging
-            print("Provided password:", password)  # Add logging
-            print("Stored password hash:", user.password)  # Add logging
 
         # If any errors exist, return them
         if errors:
-            print("Errors found:", errors)  # Add logging
             return JsonResponse({'success': False, 'errors': errors}, status=400)
 
     return render(request, 'login.html')

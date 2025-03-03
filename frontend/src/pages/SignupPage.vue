@@ -11,18 +11,18 @@
     
     <!-- Input fields for first name and last name -->
     <div class="input-group">
-      <input v-model="firstName" type="text" class="input-box" placeholder="First name" @blur="validateFirstName" required />
-      <input v-model="surname" type="text" class="input-box" placeholder="Last name" @blur="validateLastName" required />
+      <input v-model="firstName" type="text" class="input-box" placeholder="First name" @blur="validateFirstName" aria-label="First name" required />
+      <input v-model="surname" type="text" class="input-box" placeholder="Last name" @blur="validateLastName" aria-label="Last name" required />
     </div>
     <p v-if="nameError" class="error-message">⚠ First and last name are required.</p>
     
     <!-- Input field for middle name (optional) -->
-    <input v-model="middleName" type="text" class="input-box" placeholder="Middle Name(s) (Optional)" />
+    <input v-model="middleName" type="text" class="input-box" placeholder="Middle Name(s) (Optional)" aria-label="Middle Name(s) (Optional)" />
     
     <!-- Dropdown for selecting country/region -->
     <div class="input-box select-box">
       <label class="label" for="country">Country/Region</label>
-      <select id="country" v-model="country" class="select-input" required>
+      <select id="country" v-model="country" class="select-input" aria-label="Country/Region" required>
         <option>United Kingdom</option>
         <option>United States</option>
         <option>Canada</option>
@@ -33,15 +33,15 @@
     <!-- Dropdowns for selecting date of birth -->
     <label class="label dob-label" for="dobDay">Date of birth</label>
     <div class="dob-container">
-      <select v-model="dobDay" class="dob-box" @blur="validateDOB" required>
+      <select v-model="dobDay" class="dob-box" @blur="validateDOB" aria-label="Day of birth" required>
         <option value="" disabled>Day</option>
         <option v-for="n in 31" :key="n" :value="n">{{ n }}</option>
       </select>
-      <select v-model="dobMonth" class="dob-box" @blur="validateDOB" required>
+      <select v-model="dobMonth" class="dob-box" @blur="validateDOB" aria-label="Month of birth" required>
         <option value="" disabled>Month</option>
         <option v-for="(month, index) in months" :key="index" :value="index+1">{{ month }}</option>
       </select>
-      <select v-model="dobYear" class="dob-box" @blur="validateDOB" required>
+      <select v-model="dobYear" class="dob-box" @blur="validateDOB" aria-label="Year of birth" required>
         <option value="" disabled>Year</option>
         <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
       </select>
@@ -49,17 +49,17 @@
     <p v-if="dobError" class="error-message">⚠ You must be at least 18 years old to sign up.</p>
     
     <!-- Input field for email -->
-    <input v-model="email" type="email" class="input-box" placeholder="name@example.com" @blur="validateEmail" required />
+    <input v-model="email" type="email" class="input-box" placeholder="name@example.com" @blur="validateEmail" aria-label="Email" required />
     <p v-if="emailError" class="error-message">⚠ Invalid email format.</p>
     
     <!-- Input fields for password and confirm password -->
-    <input v-model="password" type="password" class="input-box" placeholder="Password" @blur="validatePassword" required />
+    <input v-model="password" type="password" class="input-box" placeholder="Password" @blur="validatePassword" aria-label="Password" required />
     <p v-if="passwordError" class="error-message">⚠ Password must contain at least 8 characters, a number, and a special character.</p>
-    <input v-model="confirmPassword" type="password" class="input-box" placeholder="Confirm Password" @blur="validateConfirmPassword" required />
+    <input v-model="confirmPassword" type="password" class="input-box" placeholder="Confirm Password" @blur="validateConfirmPassword" aria-label="Confirm Password" required />
     <p v-if="confirmPasswordError" class="error-message">⚠ Passwords do not match.</p>
     
     <!-- Submit button for the form -->
-    <button class="submit-btn" @click="submitForm">Continue</button>
+    <button class="submit-btn" @click="submitForm" :disabled="loading">Continue</button>
     
     <!-- Success and error messages -->
     <p v-if="successMessage" class="success-message">🎉 {{ successMessage }}</p>
@@ -90,6 +90,7 @@ export default {
       confirmPasswordError: false,
       backendError: "",
       successMessage: "",
+      loading: false,
       months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
       years: Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).filter(y => y <= new Date().getFullYear() - 18)
     };
@@ -121,7 +122,7 @@ export default {
     validateConfirmPassword() {
       this.confirmPasswordError = this.password !== this.confirmPassword;
     },
-    submitForm() {
+    async submitForm() {
       this.validateFirstName();
       this.validateLastName();
       this.validateDOB();
@@ -133,6 +134,7 @@ export default {
         return;
       }
 
+      this.loading = true;
       const data = {
         first_name: this.firstName,
         middle_name: this.middleName,
@@ -144,27 +146,24 @@ export default {
         confirm_password: this.confirmPassword,
       };
 
-      axios.post('http://localhost:8000/account/signup/', data)
-        .then(response => {
-          if (response.data.success) {
-            this.successMessage = response.data.message;
-            this.backendError = "";
-            axios.post(`http://localhost:8000/account/login/`, { email: this.email, password: this.password }, {
-              headers: {
-                'X-CSRFToken': getCookie('csrftoken') // Assuming you have a function to get the CSRF token
-              }
-            })
-          }
-        })
-        .catch(error => {
-          if (error.response && error.response.data.errors) {
-            this.backendError = error.response.data.errors;
-          } else {
-            this.backendError = "An error occurred. Please try again.";
-          }
-        });
+      try {
+        const response = await axios.post('http://localhost:8000/account/signup/', data);
+        if (response.data.success) {
+          this.successMessage = response.data.message;
+          this.backendError = "";
+          await this.loginUser();
+        }
+      } catch (error) {
+        if (error.response && error.response.data.errors) {
+          this.backendError = error.response.data.errors;
+        } else {
+          this.backendError = "An error occurred. Please try again.";
+        }
+      } finally {
+        this.loading = false;
+      }
     },
-    loginUser() {
+    async loginUser() {
       this.loginError = "";
       this.successMessage = "";
 
@@ -174,25 +173,24 @@ export default {
 
       if (this.emailError || this.passwordError) return;
 
-      axios.post(`http://localhost:8000/account/login/`, { email: this.email, password: this.password }, {
-        headers: {
-          'X-CSRFToken': getCookie('csrftoken') // Assuming you have a function to get the CSRF token
-        }
-      })
-        .then(response => {
-          if (response.data.success) {
-            this.successMessage = "Login successful! Redirecting...";
-            setTimeout(() => window.location.href = "/dashboard", 2000);
-          }
-        })
-        .catch(error => {
-          console.error("Login error:", error); // Add console log for debugging
-          if (error.response && error.response.data.errors) {
-            this.loginError = error.response.data.errors.login || "Invalid email or password.";
-          } else {
-            this.loginError = "Login failed. Please try again.";
+      try {
+        const response = await axios.post(`http://localhost:8000/account/login/`, { email: this.email, password: this.password }, {
+          headers: {
+            'X-CSRFToken': getCookie('csrftoken') // Assuming you have a function to get the CSRF token
           }
         });
+        if (response.data.success) {
+          this.successMessage = "Login successful! Redirecting...";
+          setTimeout(() => window.location.href = "/dashboard", 2000);
+        }
+      } catch (error) {
+        console.error("Login error:", error); // Add console log for debugging
+        if (error.response && error.response.data.errors) {
+          this.loginError = error.response.data.errors.login || "Invalid email or password.";
+        } else {
+          this.loginError = "Login failed. Please try again.";
+        }
+      }
     }
   }
 };
