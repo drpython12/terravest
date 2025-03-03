@@ -92,7 +92,11 @@ export default {
       this.loginError = "";
       this.successMessage = "";
 
-      if (this.passwordError) return;
+      // Validate email and password before making the request
+      this.validateEmail();
+      this.validatePassword();
+
+      if (this.emailError || this.passwordError) return;
 
       axios.post(`http://localhost:8000/account/login/`, { email: this.email, password: this.password })
         .then(response => {
@@ -102,6 +106,7 @@ export default {
           }
         })
         .catch(error => {
+          console.error("Login error:", error); // Add console log for debugging
           if (error.response && error.response.data.errors) {
             this.loginError = error.response.data.errors.login || "Invalid email or password.";
           } else {

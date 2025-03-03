@@ -69,74 +69,59 @@
 
 <script>
 import axios from "axios";
-import Cookies from "js-cookie"; // You need to install js-cookie package
 
 export default {
   data() {
     return {
-      firstName: "", // User's first name
-      middleName: "", // User's middle name (optional)
-      surname: "", // User's last name
-      country: "United Kingdom", // User's country/region
-      dobDay: "", // Day of birth
-      dobMonth: "", // Month of birth
-      dobYear: "", // Year of birth
-      email: "", // User's email
-      password: "", // User's password
-      confirmPassword: "", // User's confirm password
-      nameError: false, // Error state for name validation
-      dobError: false, // Error state for date of birth validation
-      emailError: false, // Error state for email validation
-      passwordError: false, // Error state for password validation
-      confirmPasswordError: false, // Error state for confirm password validation
-      backendError: "", // Error message from backend
-      successMessage: "", // Success message from backend
-      months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"], // Months for date of birth dropdown
-      years: Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).filter(y => y <= new Date().getFullYear() - 18) // Years for date of birth dropdown
+      firstName: "",
+      middleName: "",
+      surname: "",
+      country: "United Kingdom",
+      dobDay: "",
+      dobMonth: "",
+      dobYear: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      nameError: false,
+      dobError: false,
+      emailError: false,
+      passwordError: false,
+      confirmPasswordError: false,
+      backendError: "",
+      successMessage: "",
+      months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+      years: Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).filter(y => y <= new Date().getFullYear() - 18)
     };
   },
   methods: {
-    // Validate the first name
     validateFirstName() {
       this.nameError = !this.firstName.trim();
     },
-    // Validate the last name
     validateLastName() {
       this.nameError = !this.surname.trim();
     },
-    // Validate the date of birth
     validateDOB() {
-      if (!this.dobDay || !this.dobMonth || !this.dobYear) {
-        this.dobError = true;
-        return;
-      }
+      const dob = `${this.dobYear}-${this.dobMonth}-${this.dobDay}`;
       const today = new Date();
-      const birthDate = new Date(this.dobYear, this.dobMonth - 1, this.dobDay);
-      const age = today.getFullYear() - birthDate.getFullYear();
+      const birthDate = new Date(dob);
+      let age = today.getFullYear() - birthDate.getFullYear();
       const monthDiff = today.getMonth() - birthDate.getMonth();
       if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        this.dobError = age - 1 < 18;
-      } else {
-        this.dobError = age < 18;
+        age--;
       }
+      this.dobError = age < 18;
     },
-    // Validate the email format
     validateEmail() {
       this.emailError = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email);
     },
-    // Validate the password format
     validatePassword() {
       this.passwordError = !/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(this.password);
     },
-    // Validate that the confirm password matches the password
     validateConfirmPassword() {
       this.confirmPasswordError = this.password !== this.confirmPassword;
     },
-    // Submit the form data to the backend
     submitForm() {
-      this.backendError = "";
-
-      // Call all validation methods
       this.validateFirstName();
       this.validateLastName();
       this.validateDOB();
@@ -144,11 +129,11 @@ export default {
       this.validatePassword();
       this.validateConfirmPassword();
 
-      // Check for any validation errors
-      if (this.nameError || this.dobError || this.emailError || this.passwordError || this.confirmPasswordError) return;
+      if (this.nameError || this.dobError || this.emailError || this.passwordError || this.confirmPasswordError) {
+        return;
+      }
 
-      // Prepare data to be sent to the backend
-      const signupData = {
+      const data = {
         first_name: this.firstName,
         middle_name: this.middleName,
         last_name: this.surname,
@@ -156,29 +141,58 @@ export default {
         date_of_birth: `${this.dobYear}-${this.dobMonth}-${this.dobDay}`,
         email: this.email,
         password: this.password,
-        confirm_password: this.confirmPassword
+        confirm_password: this.confirmPassword,
       };
 
-      console.log("Sending data to backend:", signupData);
+      axios.post('http://localhost:8000/account/signup/', data)
+        .then(response => {
+          if (response.data.success) {
+            this.successMessage = response.data.message;
+            this.backendError = "";
+            axios.post(`http://localhost:8000/account/login/`, { email: this.email, password: this.password }, {
+              headers: {
+                'X-CSRFToken': getCookie('csrftoken') // Assuming you have a function to get the CSRF token
+              }
+            })
+          }
+        })
+        .catch(error => {
+          if (error.response && error.response.data.errors) {
+            this.backendError = error.response.data.errors;
+          } else {
+            this.backendError = "An error occurred. Please try again.";
+          }
+        });
+    },
+    loginUser() {
+      this.loginError = "";
+      this.successMessage = "";
 
-      // Send the data to the backend using Axios
-      axios.post(`http://localhost:8000/account/signup/`, signupData, {
+      // Validate email and password before making the request
+      this.validateEmail();
+      this.validatePassword();
+
+      if (this.emailError || this.passwordError) return;
+
+      axios.post(`http://localhost:8000/account/login/`, { email: this.email, password: this.password }, {
         headers: {
-          'X-CSRFToken': Cookies.get('csrftoken'), // Include the CSRF token in the headers
-          'Content-Type': 'application/json' // Ensure the content type is JSON
+          'X-CSRFToken': getCookie('csrftoken') // Assuming you have a function to get the CSRF token
         }
       })
-      .then(response => {
-        if (response.data.success) {
-          this.successMessage = response.data.message;
-          setTimeout(() => window.location.href = "/account", 2000);
-        }
-      })
-      .catch(error => {
-        if (error.response && error.response.data.errors) {
-          this.backendError = Object.values(error.response.data.errors).join(" ");
-        }
-      });
+        .then(response => {
+          if (response.data.success) {
+            this.successMessage = "Login successful! Redirecting...";
+            setTimeout(() => window.location.href = "/dashboard", 2000);
+          }
+        })
+        .catch(error => {
+          console.error("Login error:", error); // Add console log for debugging
+          if (error.response && error.response.data.errors) {
+            this.loginError = error.response.data.errors.login || "Invalid email or password.";
+          } else {
+            this.loginError = "Login failed. Please try again.";
+          }
+        });
     }
   }
 };

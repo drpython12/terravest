@@ -107,7 +107,7 @@ def create_user(first_name, middle_name, last_name, country, date_of_birth, emai
         country=country,
         date_of_birth=date_of_birth,
         email=email,
-        password=make_password(password),
+        password=make_password(password),  # Ensure password is hashed
     )
     user.save()
     return user
@@ -133,13 +133,20 @@ def check_user_exists(request):
     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
+@csrf_exempt
 def login_view(request):
     """
     Handle user login requests.
     """
     if request.method == 'POST':
-        email = request.POST.get('email')
-        password = request.POST.get('password')
+        try:
+            data = json.loads(request.body)
+            print("Received POST request with data:", data)  # Add logging
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'errors': 'Invalid JSON'}, status=400)
+
+        email = data.get('email')
+        password = data.get('password')
 
         errors = {}
 
@@ -149,6 +156,15 @@ def login_view(request):
         except ValidationError:
             errors['email'] = 'Invalid email format.'
 
+        # Check if user exists
+        try:
+            user = User.objects.get(email=email)
+            print("User found:", user)  # Add logging
+        except User.DoesNotExist:
+            errors['login'] = 'Invalid email or password.'
+            print("User does not exist")  # Add logging
+            return JsonResponse({'success': False, 'errors': errors}, status=400)
+
         # Authenticate user
         user = authenticate(request, username=email, password=password)
         if user is not None:
@@ -156,9 +172,13 @@ def login_view(request):
             return JsonResponse({'success': True, 'message': 'Login successful! Redirecting...'})
         else:
             errors['login'] = 'Invalid email or password.'
+            print("Authentication failed")  # Add logging
+            print("Provided password:", password)  # Add logging
+            print("Stored password hash:", user.password)  # Add logging
 
         # If any errors exist, return them
         if errors:
+            print("Errors found:", errors)  # Add logging
             return JsonResponse({'success': False, 'errors': errors}, status=400)
 
     return render(request, 'login.html')
