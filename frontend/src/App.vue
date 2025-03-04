@@ -1,21 +1,7 @@
 <template>
   <div id="app">
     <!-- Header -->
-    <header class="header">
-      <div class="container header-container">
-        <router-link to="/" class="flex items-center logo-container">
-          <span class="logo-text">TerraVest</span>
-        </router-link>
-        <nav class="nav">
-          <a href="#" aria-label="Features">Features</a>
-          <a href="#" aria-label="About">About</a>
-          <a href="#" aria-label="Contact">Contact</a>
-          <router-link to="/dashboard" v-if="isLoggedIn">Dashboard</router-link>
-          <a href="#" @click="logout" v-if="isLoggedIn">Logout</a> <!-- Added logout option -->
-          <router-link to="/account" aria-label="Account">Account</router-link>
-        </nav>
-      </div>
-    </header>
+    <Header />
 
     <!-- Routed Content -->
     <router-view />
@@ -30,24 +16,17 @@
 </template>
 
 <script>
-import axios from 'axios';
-import logo from '@/assets/terravest-logo.png';
+import { useAuthStore } from './store/useAuthStore';
+import Header from './components/Header.vue';
 
 export default {
   name: 'App',
-  data() {
-    return {
-      logo,
-      appData: null,
-    };
+  components: {
+    Header,
   },
   async created() {
-    try {
-      const response = await axios.get('/api/app-data');
-      this.appData = response.data;
-    } catch (error) {
-      console.error(error);
-    }
-  }
+    const authStore = useAuthStore();
+    await authStore.fetchUser();
+  },
 };
 </script>

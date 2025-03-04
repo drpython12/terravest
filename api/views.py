@@ -10,43 +10,18 @@ import json
 import re
 from .models import User
 
-@csrf_exempt
-def signup_view(request):
-    """
-    Handle user signup requests.
-    """
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-        except json.JSONDecodeError:
-            return JsonResponse({'success': False, 'errors': 'Invalid JSON'}, status=400)
+def json_response(data, status=200):
+    return JsonResponse(data, status=status)
 
-        first_name = data.get('first_name')
-        middle_name = data.get('middle_name', '')
-        last_name = data.get('last_name')
-        country = data.get('country')
-        date_of_birth = data.get('date_of_birth')
-        email = data.get('email')
-        password = data.get('password')
-        confirm_password = data.get('confirm_password')
-
-        errors = validate_signup_data(first_name, last_name, country, date_of_birth, email, password, confirm_password)
-
-        if errors:
-            return JsonResponse({'success': False, 'errors': errors}, status=400)
-
-        create_user(first_name, middle_name, last_name, country, date_of_birth, email, password)
-        return JsonResponse({'success': True, 'message': 'Account successfully created! Redirecting...'})
-    return render(request, 'signup.html')
-
+def parse_json_request(request):
+    try:
+        return json.loads(request.body)
+    except json.JSONDecodeError:
+        return None
 
 def validate_signup_data(first_name, last_name, country, date_of_birth, email, password, confirm_password):
-    """
-    Validate the signup data provided by the user.
-    """
     errors = {}
 
-    # Check for missing fields
     if not first_name:
         errors['first_name'] = 'First name is required.'
     if not last_name:
@@ -62,26 +37,21 @@ def validate_signup_data(first_name, last_name, country, date_of_birth, email, p
     if not confirm_password:
         errors['confirm_password'] = 'Confirm password is required.'
 
-    # Check if email is already registered
     if User.objects.filter(email=email).exists():
         errors['email'] = 'Email is already registered.'
 
-    # Validate email format
     try:
         validate_email(email)
     except ValidationError:
         errors['email'] = 'Invalid email format.'
 
-    # Validate password format
     password_pattern = re.compile(r'^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$')
     if not password_pattern.match(password):
         errors['password'] = 'Password must contain at least 8 characters, a number, and a special character.'
 
-    # Check if passwords match
     if password != confirm_password:
         errors['confirm_password'] = 'Passwords do not match.'
 
-    # Validate age (must be 18+)
     try:
         dob = datetime.strptime(date_of_birth, "%Y-%m-%d")
         today = datetime.today()
@@ -93,11 +63,7 @@ def validate_signup_data(first_name, last_name, country, date_of_birth, email, p
 
     return errors
 
-
 def create_user(first_name, middle_name, last_name, country, date_of_birth, email, password):
-    """
-    Create a new user with the provided data.
-    """
     user = User(
         first_name=first_name,
         middle_name=middle_name,
@@ -105,75 +71,101 @@ def create_user(first_name, middle_name, last_name, country, date_of_birth, emai
         country=country,
         date_of_birth=date_of_birth,
         email=email,
-        password=make_password(password),  # Ensure password is hashed
+        password=make_password(password),
     )
     user.save()
     return user
 
+@csrf_exempt
+def signup_view(request):
+    if request.method == 'POST':
+        data = parse_json_request(request)
+        if not data:
+            return json_response({'success': False, 'errors': 'Invalid JSON'}, status=400)
+
+        first_name = data.get('first_name')
+        middle_name = data.get('middle_name', '')
+        last_name = data.get('last_name')
+        country = data.get('country')
+        date_of_birth = data.get('date_of_birth')
+        email = data.get('email')
+        password = data.get('password')
+        confirm_password = data.get('confirm_password')
+
+        errors = validate_signup_data(first_name, last_name, country, date_of_birth, email, password, confirm_password)
+        if errors:
+            return json_response({'success': False, 'errors': errors}, status=400)
+
+        create_user(first_name, middle_name, last_name, country, date_of_birth, email, password)
+        return json_response({'success': True, 'message': 'Account successfully created! Redirecting...'})
+    return render(request, 'signup.html')
 
 @csrf_exempt
 def check_user_exists(request):
-    """
-    Check if a user exists by email.
-    """
     if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            email = data.get('email')
-            if not email:
-                return JsonResponse({'exists': False, 'error': 'Email is required'}, status=400)
+        data = parse_json_request(request)
+        if not data:
+            return json_response({'exists': False, 'error': 'Invalid JSON'}, status=400)
 
-            exists = User.objects.filter(email=email).exists()
-            return JsonResponse({'exists': exists})
-        except json.JSONDecodeError:
-            return JsonResponse({'exists': False, 'error': 'Invalid JSON'}, status=400)
+        email = data.get('email')
+        if not email:
+            return json_response({'exists': False, 'error': 'Email is required'}, status=400)
 
-    return JsonResponse({'error': 'Invalid request method'}, status=400)
-
+        exists = User.objects.filter(email=email).exists()
+        return json_response({'exists': exists})
+    return json_response({'error': 'Invalid request method'}, status=400)
 
 @csrf_exempt
 def login_view(request):
-    """
-    Handle user login requests.
-    """
     if request.method == 'POST':
+        data = parse_json_request(request)
+        if not data:
+            return json_response({'success': False, 'errors': 'Invalid JSON'}, status=400)
+
+        email = data.get('email')
+        password = data.get('password')
+
+        errors = {}
         try:
-            data = json.loads(request.body)
-            email = data.get('email')
-            password = data.get('password')
+            validate_email(email)
+        except ValidationError:
+            errors['email'] = 'Invalid email format.'
 
-            errors = {}
+        user = authenticate(request, username=email, password=password)
+        if user is not None:
+            login(request, user)
+            if not user.preferences_completed:
+                return json_response({'success': True, 'redirect': '/account/preferences/'})
+            return json_response({'success': True, 'redirect': '/dashboard/'})
+        else:
+            errors['login'] = 'Invalid email or password.'
 
-            # Validate email format
-            try:
-                validate_email(email)
-            except ValidationError:
-                errors['email'] = 'Invalid email format.'
-
-            # Authenticate user
-            user = authenticate(request, username=email, password=password)
-            if user is not None:
-                login(request, user)
-                # Check if user has completed preferences
-                if not user.preferences_completed:
-                    return JsonResponse({'success': True, 'redirect': '/account/preferences/'})
-                return JsonResponse({'success': True, 'redirect': '/dashboard/'})
-            else:
-                errors['login'] = 'Invalid email or password.'
-
-            # If any errors exist, return them
-            if errors:
-                return JsonResponse({'success': False, 'errors': errors}, status=400)
-
-        except json.JSONDecodeError:
-            return JsonResponse({'success': False, 'errors': 'Invalid JSON'}, status=400)
-
+        if errors:
+            return json_response({'success': False, 'errors': errors}, status=400)
     return render(request, 'login.html')
 
-
 def logout_view(request):
-    """
-    Handle user logout.
-    """
     logout(request)
-    return JsonResponse({'success': True, 'redirect': '/account/'})
+    return json_response({'success': True, 'redirect': '/account/login/'})
+
+@csrf_exempt
+def preferences_view(request):
+    if request.method == 'POST':
+        data = parse_json_request(request)
+        if not data:
+            return json_response({'success': False, 'errors': 'Invalid JSON'}, status=400)
+
+        investment_type = data.get('investmentType')
+        risk_level = data.get('riskLevel')
+
+        if not investment_type or not risk_level:
+            return json_response({'success': False, 'errors': 'All fields are required'}, status=400)
+
+        user = request.user
+        user.investment_type = investment_type
+        user.risk_level = risk_level
+        user.preferences_completed = True
+        user.save()
+
+        return json_response({'success': True})
+    return json_response({'error': 'Invalid request method'}, status=400)

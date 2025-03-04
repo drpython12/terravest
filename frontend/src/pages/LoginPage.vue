@@ -45,7 +45,8 @@
 </template>
 
 <script>
-import axios from "axios";
+import axiosInstance from '../axiosConfig';
+import { useAuthStore } from '../store/useAuthStore';
 
 export default {
   data() {
@@ -73,7 +74,7 @@ export default {
     async checkUserExists() {
       this.loading = true;
       try {
-        const response = await axios.post(`http://localhost:8000/account/check-user/`, { email: this.email });
+        const response = await axiosInstance.post('/account/check-user/', { email: this.email });
         if (response.data.exists) {
           this.showPassword = true;
           this.userNotFoundError = false;
@@ -105,11 +106,10 @@ export default {
 
       this.loading = true;
       try {
-        const response = await axios.post(`http://localhost:8000/account/login/`, { email: this.email, password: this.password });
-        if (response.data.success) {
-          this.successMessage = "Login successful! Redirecting...";
-          setTimeout(() => window.location.href = "/dashboard", 2000);
-        }
+        const authStore = useAuthStore();
+        const redirectUrl = await authStore.login(this.email, this.password);
+        this.successMessage = "Login successful! Redirecting...";
+        setTimeout(() => window.location.href = redirectUrl, 2000);
       } catch (error) {
         console.error("Login error:", error); // Add console log for debugging
         if (error.response && error.response.data.errors) {

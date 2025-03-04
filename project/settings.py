@@ -135,5 +135,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8000",
 ]
 
+CORS_ALLOW_CREDENTIALS = True
+
 AUTH_USER_MODEL = 'api.User'
 

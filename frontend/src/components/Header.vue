@@ -9,47 +9,30 @@
         <a href="#" aria-label="About">About</a>
         <a href="#" aria-label="Contact">Contact</a>
         <router-link to="/dashboard" v-if="isLoggedIn">Dashboard</router-link>
-        <a href="#" @click="logout" v-if="isLoggedIn">Logout</a>
-        <router-link :to="accountLink" aria-label="Account">Account</router-link>
+        <div v-if="isLoggedIn" class="dropdown">
+          <button class="dropbtn">Account</button>
+          <div class="dropdown-content">
+            <router-link to="/account/settings">Settings</router-link>
+            <a href="#" @click="logout">Logout</a>
+          </div>
+        </div>
+        <router-link v-else to="/login" aria-label="Account">Account</router-link>
       </nav>
     </div>
   </header>
 </template>
 
 <script>
-import axios from 'axios';
+import { useAuthStore } from '../store/useAuthStore';
 
 export default {
-  data() {
+  setup() {
+    const authStore = useAuthStore();
     return {
-      isLoggedIn: false,
+      isLoggedIn: authStore.isLoggedIn,
+      logout: authStore.logout,
     };
   },
-  computed: {
-    accountLink() {
-      return this.isLoggedIn ? '/account' : '/login';
-    }
-  },
-  async created() {
-    try {
-      const response = await axios.get('/api/app-data');
-      this.isLoggedIn = response.data.isLoggedIn; // Assuming the API returns the login status
-    } catch (error) {
-      console.error(error);
-    }
-  },
-  methods: {
-    logout() {
-      axios.post('/account/logout/')
-        .then(() => {
-          this.isLoggedIn = false;
-          window.location.href = '/';
-        })
-        .catch(error => {
-          console.error("Logout error:", error);
-        });
-    }
-  }
 };
 </script>
 
@@ -93,6 +76,48 @@ export default {
   transition: color 0.3s ease;
 }
 .nav a:hover {
+  color: #000;
+}
+
+/* Dropdown Styles */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropbtn {
+  background-color: #fff;
+  color: #555;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  background-color: #f9f9f9;
+  min-width: 160px;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 1;
+}
+
+.dropdown-content a {
+  color: black;
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+}
+
+.dropdown-content a:hover {
+  background-color: #f1f1f1;
+}
+
+.dropdown:hover .dropdown-content {
+  display: block;
+}
+
+.dropdown:hover .dropbtn {
   color: #000;
 }
 </style>
