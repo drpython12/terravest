@@ -26,8 +26,6 @@
         </div>
       </div>
     </section>
-    <div v-if="loading">Loading...</div>
-    <div v-else>{{ title }}</div>
   </div>
 </template>
 
@@ -38,7 +36,6 @@ export default {
   data() {
     return {
       title: '',
-      loading: true,
     };
   },
   async created() {
@@ -47,8 +44,6 @@ export default {
       this.title = response.data;
     } catch (error) {
       console.error(error);
-    } finally {
-      this.loading = false;
     }
   }
 };

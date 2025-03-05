@@ -9,6 +9,7 @@ from datetime import datetime
 import json
 import re
 from .models import User
+from django.contrib.auth.decorators import login_required
 
 def json_response(data, status=200):
     return JsonResponse(data, status=status)
@@ -144,6 +145,20 @@ def login_view(request):
             return json_response({'success': False, 'errors': errors}, status=400)
     return render(request, 'login.html')
 
+@login_required
+def app_data(request):
+    user = request.user
+    return JsonResponse({
+        'isLoggedIn': True,
+        'user': {
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'preferences_completed': user.preferences_completed,
+        }
+    })
+
+@csrf_exempt
 def logout_view(request):
     logout(request)
     return json_response({'success': True, 'redirect': '/account/login/'})
@@ -165,6 +180,23 @@ def preferences_view(request):
         user.investment_type = investment_type
         user.risk_level = risk_level
         user.preferences_completed = True
+        user.save()
+
+        return json_response({'success': True})
+    return json_response({'error': 'Invalid request method'}, status=400)
+
+@csrf_exempt
+@login_required
+def update_settings(request):
+    if request.method == 'POST':
+        data = parse_json_request(request)
+        if not data:
+            return json_response({'success': False, 'errors': 'Invalid JSON'}, status=400)
+
+        user = request.user
+        user.first_name = data.get('first_name', user.first_name)
+        user.last_name = data.get('last_name', user.last_name)
+        user.email = data.get('email', user.email)
         user.save()
 
         return json_response({'success': True})

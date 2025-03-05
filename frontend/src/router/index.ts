@@ -1,8 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import MainPage from '@/pages/MainPage.vue';
 import AccountPage from '@/pages/AccountPage.vue';
-import SignUpPage from '../pages/SignupPage.vue';
-import path from 'path';
+import SignupPage from '@/pages/SignupPage.vue';
+import LoginPage from '@/pages/LoginPage.vue';
+import PreferencesPage from '@/pages/PreferencesPage.vue';
+import DashboardPage from '@/pages/DashboardPage.vue';
+import AccountSettingsPage from '@/pages/AccountSettingsPage.vue';
 
 const routes = [
   {
@@ -18,18 +21,28 @@ const routes = [
   { 
     path: '/signup', 
     name: 'SignupPage',
-    component: SignUpPage,
+    component: SignupPage,
   },
   {
     path: '/login',
     name: 'LoginPage',
-    component: () => import('@/pages/LoginPage.vue'),
+    component: LoginPage,
   },
   {
     path: '/account/preferences',
     name: 'PreferencesPage',
-    component: () => import('@/pages/PreferencesPage.vue'),
+    component: PreferencesPage,
   },
+  {
+    path: '/dashboard',
+    name: 'DashboardPage',
+    component: DashboardPage,
+  },
+  {
+    path: '/account/settings',
+    name: 'SettingsPage',
+    component: AccountSettingsPage,
+  }
 ];
 
 const router = createRouter({

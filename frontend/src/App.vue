@@ -1,7 +1,8 @@
 <template>
   <div id="app">
-    <!-- Header -->
-    <Header />
+    <!-- Conditionally Render Headers -->
+    <HeaderBeforeLogin v-if="!isLoggedIn" />
+    <HeaderAfterLogin v-else />
 
     <!-- Routed Content -->
     <router-view />
@@ -17,12 +18,23 @@
 
 <script>
 import { useAuthStore } from './store/useAuthStore';
-import Header from './components/Header.vue';
+import HeaderBeforeLogin from './components/HeaderBeforeLogin.vue';
+import HeaderAfterLogin from './components/HeaderAfterLogin.vue';
+import { computed } from 'vue';
 
 export default {
   name: 'App',
   components: {
-    Header,
+    HeaderBeforeLogin,
+    HeaderAfterLogin,
+  },
+  setup() {
+    const authStore = useAuthStore();
+    const isLoggedIn = computed(() => authStore.isLoggedIn);
+
+    return {
+      isLoggedIn,
+    };
   },
   async created() {
     const authStore = useAuthStore();
