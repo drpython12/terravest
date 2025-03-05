@@ -5,10 +5,18 @@
         <span class="logo-text">TerraVest</span>
       </router-link>
       <nav class="nav">
-        <a href="#" aria-label="Features">Features</a>
-        <a href="#" aria-label="About">About</a>
-        <a href="#" aria-label="Contact">Contact</a>
         <router-link to="/dashboard">Dashboard</router-link>
+        <div class="dropdown">
+          <button class="dropbtn">Investments</button>
+          <div class="dropdown-content">
+            <router-link to="/account/preferences">Preferences</router-link>
+            <router-link to="/account/portfolio">Portfolio Manager</router-link>
+            <router-link to="/company">Company Insights</router-link>
+            <router-link to="/reports">Reports</router-link>
+            </div>
+        </div>
+        <a href="#" aria-label="FAQ">FAQ</a>
+        <a href="#" aria-label="Help">Help</a>
         <div class="dropdown">
           <button class="dropbtn">Account</button>
           <div class="dropdown-content">

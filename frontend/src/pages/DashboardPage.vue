@@ -1,7 +1,7 @@
 <template>
     <div class="dashboard-container">
       <header class="dashboard-header">
-        <h1>Welcome, {{ authStore.user }}!</h1>
+        <h1>Welcome, {{ authStore.user.first_name }}!</h1>
         <p>Track your ESG investments and sentiment trends.</p>
       </header>
   
@@ -81,4 +81,4 @@
   .analysis-section {
     width: 50%;
   }
-  </style>  
+  </style>
