@@ -3,13 +3,23 @@ from django.contrib.auth import authenticate, login, logout
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime
 import json
 import re
-from .models import User
+from .models import User, PortfolioStock  # Ensure PortfolioStock model exists
 from django.contrib.auth.decorators import login_required
+import requests
+from yahoo_fin import stock_info
+import logging
+from yahooquery import Ticker
+import yfinance as yf
+
+ALPHA_VANTAGE_API_KEY = "PNPAH7B7UT76I8OI"
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 def json_response(data, status=200):
     return JsonResponse(data, status=status)
@@ -201,3 +211,99 @@ def update_settings(request):
 
         return json_response({'success': True})
     return json_response({'error': 'Invalid request method'}, status=400)
+
+# Get user's portfolio holdings
+@login_required
+def get_portfolio(request):
+    user = request.user
+    holdings = PortfolioStock.objects.filter(user=user).values()
+    return JsonResponse(list(holdings), safe=False)
+
+# Fetch live stock price
+def get_stock_price(request):
+    symbol = request.GET.get("symbol", "").strip().upper()
+    if not symbol:
+        return JsonResponse({"error": "Symbol is required"}, status=400)
+
+    try:
+        price = stock_info.get_live_price(symbol)
+        return JsonResponse({"symbol": symbol, "price": round(price, 2)})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
+# Add a stock to the portfolio
+@csrf_exempt
+@login_required
+def add_stock(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+        symbol = data.get("symbol")
+        shares = int(data.get("shares", 0))
+        user = request.user
+
+        if not symbol or shares <= 0:
+            return JsonResponse({"error": "Invalid data"}, status=400)
+
+        # Fetch stock price
+        try:
+            price = stock_info.get_live_price(symbol)
+        except Exception:
+            return JsonResponse({"error": "Failed to fetch stock price"}, status=400)
+
+        # Save to portfolio
+        stock, created = PortfolioStock.objects.get_or_create(
+            user=user, symbol=symbol,
+            defaults={"shares": shares, "price": price}
+        )
+
+        if not created:
+            stock.shares += shares
+            stock.save()
+
+        return JsonResponse({"message": "Stock added successfully"})
+
+# Remove a stock from the portfolio
+@csrf_exempt
+@login_required
+def remove_stock(request, stock_id):
+    stock = get_object_or_404(PortfolioStock, id=stock_id, user=request.user)
+    stock.delete()
+    return JsonResponse({"message": "Stock removed successfully"})
+
+# Search for companies using Yahoo Finance
+@csrf_exempt
+def search_company(request):
+    """Fetch matching company names from Alpha Vantage."""
+    company = request.GET.get("query", "").strip()
+    logger.info(f"Received search query: {company}")  # Add logging
+    if not company:
+        return JsonResponse({"error": "No query provided"}, status=400)
+
+    try:
+        # API endpoint from Alpha Vantage's documentation
+        url = f'https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords={company}&apikey={ALPHA_VANTAGE_API_KEY}'
+        r = requests.get(url)
+        data = r.json()
+        return data
+        logger.info(f"Alpha Vantage response: {data}")  # Add logging
+
+        if "bestMatches" not in data:
+            return JsonResponse({"error": "No results found"}, status=404)
+
+        # Format the data correctly
+        results = [
+            {
+                "symbol": item["1. symbol"],
+                "name": item["2. name"],
+                "region": item["4. region"],
+                "currency": item["8. currency"],
+            }
+            for item in data["bestMatches"]
+        ]
+
+        logger.info(f"Formatted results: {results}")  # Add logging
+        return JsonResponse({"results": results})
+
+    except Exception as e:
+        logger.error(f"Error fetching companies: {e}")  # Add logging
+        return JsonResponse({"error": str(e)}, status=500)

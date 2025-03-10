@@ -6,6 +6,7 @@ import LoginPage from '@/pages/LoginPage.vue';
 import PreferencesPage from '@/pages/PreferencesPage.vue';
 import DashboardPage from '@/pages/DashboardPage.vue';
 import AccountSettingsPage from '@/pages/AccountSettingsPage.vue';
+import PortfolioPage from '@/pages/PortfolioPage.vue';
 
 const routes = [
   {
@@ -42,6 +43,11 @@ const routes = [
     path: '/account/settings',
     name: 'SettingsPage',
     component: AccountSettingsPage,
+  },
+  {
+    path: '/account/portfolio',
+    name: 'PortfolioPage',
+    component: PortfolioPage,
   }
 ];
 
