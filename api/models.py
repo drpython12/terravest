@@ -39,6 +39,7 @@ class User(AbstractUser):
         """
         return self.email
 
+
 class PortfolioStock(models.Model):
     """
     Model representing a stock in a user's portfolio.
@@ -47,6 +48,8 @@ class PortfolioStock(models.Model):
     symbol = models.CharField(max_length=10)
     shares = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    amount_invested = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    price_bought_at = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     added_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -54,3 +57,44 @@ class PortfolioStock(models.Model):
         Return a string representation of the portfolio stock.
         """
         return f"{self.symbol} - {self.user.email}"
+
+
+class UserPreferences(models.Model):
+    """
+    Model to store user preferences.
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="preferences")
+    investment_type = models.CharField(max_length=50, choices=[
+        ('stocks', 'Stocks'),
+        ('bonds', 'Bonds'),
+        ('real_estate', 'Real Estate'),
+        ('crypto', 'Cryptocurrency'),
+    ])
+    risk_level = models.CharField(max_length=10, choices=[
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+    ])
+    investment_strategy = models.CharField(max_length=50, choices=[
+        ('impact_investing', 'Impact Investing'),
+        ('esg_integration', 'ESG Integration'),
+        ('ethical_screening', 'Ethical Screening'),
+        ('traditional_esg', 'Traditional Investing with ESG Consideration'),
+    ])
+    esg_factors = models.JSONField(default=list)  # To store multiple ESG factors
+    industry_preferences = models.JSONField(default=list, blank=True)  # Optional field
+    exclusions = models.JSONField(default=list, blank=True)  # Optional field
+    sentiment_analysis = models.CharField(max_length=10, choices=[
+        ('yes', 'Yes'),
+        ('no', 'No'),
+    ])
+    transparency_level = models.CharField(max_length=20, choices=[
+        ('simple_summary', 'Simple Summary'),
+        ('detailed_breakdown', 'Detailed Breakdown'),
+    ])
+
+    def __str__(self):
+        """
+        Return a string representation of the user's preferences.
+        """
+        return f"Preferences for {self.user.email}"

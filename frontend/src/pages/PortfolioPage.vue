@@ -1,42 +1,112 @@
 <template>
-  <div class="portfolio-container">
+  <div class="container">
     <header class="portfolio-header">
       <h1>Your Portfolio</h1>
       <p>Manage your investments and track ESG performance.</p>
     </header>
 
     <!-- Add Company Button -->
-    <div class="add-company-button" @mouseenter="dropdownOpen = true" @mouseleave="dropdownOpen = false">
-      <button class="green-button">+ Add Company</button>
-      <div v-if="dropdownOpen" class="dropdown-menu">
-        <button @click="selectOption('companyFinder')">Company Finder</button>
-        <button @click="selectOption('bulkImport')">Bulk Import</button>
-      </div>
+    <div class="add-company-button">
+      <button class="green-button" @click="showModal = true">+ Add Company</button>
     </div>
 
-    <!-- Company Finder Form -->
-    <div v-if="showCompanyFinder" class="company-finder">
-      <h2>Company Finder</h2>
-      <div class="input-container">
-        <input
-          v-model="searchQuery"
-          placeholder="Search for a company..."
-          class="search-input"
-        />
-        <button @click="fetchCompanies" class="search-button">🔍</button>
-        <ul v-if="searchResults.length" class="dropdown">
-          <li v-for="(company, index) in searchResults"
-              :key="index"
-              @click="selectCompany(company)">
-            {{ company.name }} ({{ company.symbol }}) - {{ company.region }} [{{ company.currency }}]
-          </li>
-        </ul>
-      </div>
-      <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
-      <div v-if="selectedStock">
-        <p>Selected: {{ selectedStock.name }} ({{ selectedStock.symbol }})</p>
-        <input type="number" v-model="shares" placeholder="Number of shares" class="shares-input" />
-        <button @click="addStock" class="add-button">Add to Portfolio</button>
+    <!-- Modal for Add Company -->
+    <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Add Company</h2>
+          <button class="close-button" @click="closeModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <!-- Options for Company Finder and Bulk Import -->
+          <div v-if="!selectedOption" class="options">
+            <span class="option-text" @click="selectOption('companyFinder')">Company Finder</span>
+            <span class="option-text" @click="selectOption('bulkImport')">Bulk Import</span>
+          </div>
+
+          <!-- Company Finder Form -->
+          <div v-if="selectedOption === 'companyFinder' && !companySelected" class="company-finder">
+            <button class="back-button" @click="goBack">&larr; Back</button>
+            <h3 class="sub-heading">Company Finder</h3>
+            <div class="input-container">
+              <input
+                v-model="searchQuery"
+                placeholder="Search for a company..."
+                class="search-input"
+              />
+              <button @click="fetchCompanies" class="search-button">
+                <span class="search-icon">🔍</span>
+              </button>
+            </div>
+            <ul v-if="searchResults.length" class="dropdown">
+              <li v-for="(company, index) in searchResults"
+                  :key="index"
+                  @click="selectCompany(company)">
+                <div class="result-item">
+                  <div class="result-symbol">{{ company.symbol }}</div>
+                  <div class="result-name">{{ company.name }}</div>
+                </div>
+              </li>
+            </ul>
+            <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+          </div>
+
+          <!-- Add Company Details Form -->
+          <div v-if="selectedOption === 'companyFinder' && companySelected" class="company-details">
+            <button class="back-button" @click="companySelected = false">&larr; Back</button>
+            <h3 class="sub-heading">Add Company Details</h3>
+            <p class="selected-stock">Selected: {{ selectedStock.name }} ({{ selectedStock.symbol }})</p>
+            <div class="input-container">
+              <input
+                v-if="inputType === 'shares'"
+                type="number"
+                v-model="shares"
+                placeholder="Number of shares"
+                class="shares-input"
+              />
+              <input
+                v-if="inputType === 'amount'"
+                type="number"
+                v-model="amountInvested"
+                placeholder="Amount invested"
+                class="shares-input"
+              />
+              <div class="switch-input">
+                <span
+                  :class="{ active: inputType === 'shares' }"
+                  @click="inputType = 'shares'"
+                >
+                  Number of shares
+                </span>
+                |
+                <span
+                  :class="{ active: inputType === 'amount' }"
+                  @click="inputType = 'amount'"
+                >
+                  Amount invested
+                </span>
+              </div>
+            </div>
+            <div class="input-container">
+              <input
+                type="number"
+                v-model="priceBoughtAt"
+                :placeholder="priceBoughtAtPlaceholder"
+                class="shares-input"
+              />
+            </div>
+            <button @click="addStock" class="add-button">Add to Portfolio</button>
+          </div>
+
+          <!-- Bulk Import Form -->
+          <div v-if="selectedOption === 'bulkImport'" class="bulk-import">
+            <button class="back-button" @click="goBack">&larr; Back</button>
+            <h3 class="sub-heading">Bulk Import</h3>
+            <p>Upload a CSV file to add multiple companies to your portfolio.</p>
+            <input type="file" @change="handleFileUpload" class="file-input" />
+            <button @click="uploadFile" class="upload-button">Upload</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -46,17 +116,28 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import axios from "axios";
 import HoldingsTable from "../components/HoldingsTable.vue";
 
 const searchQuery = ref("");
 const searchResults = ref([]);
 const selectedStock = ref(null);
-const shares = ref(0);
-const dropdownOpen = ref(false);
-const showCompanyFinder = ref(false);
+const shares = ref(null); // Ensure shares is null initially
+const amountInvested = ref(null); // Ensure amountInvested is null initially
+const priceBoughtAt = ref(null); // Ensure priceBoughtAt is null initially
+const inputType = ref("shares"); // Default input type is shares
+const showModal = ref(false);
+const selectedOption = ref(null);
+const companySelected = ref(false);
 const errorMessage = ref("");
+const file = ref(null);
+
+const priceBoughtAtPlaceholder = computed(() => {
+  return inputType.value === "shares"
+    ? "Price Bought At (optional)"
+    : "Price Bought At (mandatory)";
+});
 
 const fetchCompanies = async () => {
   try {
@@ -75,166 +156,192 @@ const fetchCompanies = async () => {
 
 const selectCompany = (company) => {
   selectedStock.value = company;
-  searchQuery.value = company.name; // Set input to selected company name
-  searchResults.value = []; // Hide dropdown after selection
+  companySelected.value = true;
 };
 
 const addStock = async () => {
-  if (!selectedStock.value || shares.value <= 0) {
+  if (inputType.value === "shares" && (!selectedStock.value || shares.value <= 0)) {
     alert("Please select a stock and enter a valid number of shares.");
     return;
   }
 
+  if (inputType.value === "amount" && (!selectedStock.value || amountInvested.value <= 0 || priceBoughtAt.value <= 0)) {
+    alert("Please select a stock, enter a valid amount invested, and enter a valid price bought at.");
+    return;
+  }
+
   try {
-    await axios.post("/api/add-stock/", {
+    await axios.post("http://localhost:8000/api/add-stock/", {
       symbol: selectedStock.value.symbol,
-      shares: shares.value,
+      name: selectedStock.value.name,
+      shares: inputType.value === "shares" ? shares.value : amountInvested.value / priceBoughtAt.value,
+      amountInvested: inputType.value === "amount" ? amountInvested.value : null,
+      priceBoughtAt: priceBoughtAt.value || null,
     });
     selectedStock.value = null;
-    shares.value = 0;
+    shares.value = null; // Reset shares to null after adding stock
+    amountInvested.value = null; // Reset amountInvested to null after adding stock
+    priceBoughtAt.value = null; // Reset priceBoughtAt to null after adding stock
+    closeModal(); // Close the modal after adding stock
   } catch (error) {
     console.error("Failed to add stock:", error);
   }
 };
 
+const closeModal = () => {
+  showModal.value = false;
+  searchQuery.value = "";
+  searchResults.value = [];
+  selectedStock.value = null;
+  shares.value = null;
+  amountInvested.value = null;
+  priceBoughtAt.value = null;
+  selectedOption.value = null;
+  companySelected.value = false;
+  inputType.value = "shares"; // Reset input type to shares
+};
+
 const selectOption = (option) => {
-  dropdownOpen.value = false;
-  if (option === 'companyFinder') {
-    showCompanyFinder.value = true;
-  } else if (option === 'bulkImport') {
-    showCompanyFinder.value = false;
-    // Implement bulk import functionality here
+  selectedOption.value = option;
+};
+
+const goBack = () => {
+  selectedOption.value = null;
+  companySelected.value = false;
+};
+
+const handleFileUpload = (event) => {
+  file.value = event.target.files[0];
+};
+
+const uploadFile = async () => {
+  if (!file.value) {
+    alert("Please select a file to upload.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", file.value);
+
+  try {
+    await axios.post("/api/bulk-import/", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    alert("File uploaded successfully.");
+    closeModal();
+  } catch (error) {
+    console.error("Failed to upload file:", error);
+    alert("Failed to upload file. Please try again.");
   }
 };
 </script>
 
 <style scoped>
-/* Apple-Style UI */
-.portfolio-container {
-  max-width: 1200px;
+/* Container styling */
+.container {
+  text-align: center;
+  background: white;
+  padding: 40px;
+  border-radius: 10px;
+  width: 500px;
   margin: auto;
-  padding: 40px 20px;
-  background: #f9f9f9;
+  margin-top: 50px;
 }
 
-.portfolio-header {
-  text-align: center;
+/* Title styling */
+.portfolio-header h1 {
+  font-size: 28px;
+  font-weight: bold;
+  font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.portfolio-header p {
+  font-size: 16px;
+  color: #666;
   margin-bottom: 30px;
 }
 
-.portfolio-header h1 {
-  font-size: 2rem;
-  font-weight: 600;
-  color: #333;
-}
-
-.add-company-button {
-  text-align: center;
-  margin-bottom: 20px;
-  position: relative;
-}
-
-.green-button {
-  background-color: #28a745;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  cursor: pointer;
-  border-radius: 6px;
-  font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;
-}
-
-.green-button:hover {
-  background-color: #218838;
-}
-
-.dropdown-menu {
-  display: none;
-  flex-direction: column;
-  position: absolute;
-  background: white;
+/* Input box styling */
+.search-input, .shares-input, .file-input {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
   border: 1px solid #ccc;
   border-radius: 6px;
-  margin-top: 5px;
-  width: 100%;
-}
-
-.add-company-button:hover .dropdown-menu,
-.dropdown-menu:hover {
-  display: flex;
-}
-
-.dropdown-menu button {
-  background: none;
-  border: none;
-  padding: 10px;
-  cursor: pointer;
-  text-align: left;
-  font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  color: black;
-}
-
-.dropdown-menu button:hover {
-  background: #f0f0f0;
-}
-
-.company-finder {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-  margin-top: 20px;
-}
-
-.company-finder h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 20px;
-}
-
-.input-container {
-  position: relative;
-  width: 100%;
-  display: flex;
+  outline: none;
+  margin-bottom: 10px;
+  padding-right: 40px; /* Add padding to the right to make space for the icon */
 }
 
 .search-input {
-  flex: 1;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px 0 0 6px;
-  font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  position: relative;
 }
 
 .search-button {
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-left: none;
-  border-radius: 0 6px 6px 0;
-  background: #007bff;
-  color: white;
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
   cursor: pointer;
-  font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-.search-button:hover {
-  background: #0056b3;
+.search-icon {
+  font-size: 16px;
+  color: #ccc;
 }
 
+/* Submit button styling */
+.add-button, .green-button, .upload-button {
+  background-color: #007aff;
+  color: white;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+.add-button:hover, .green-button:hover, .upload-button:hover {
+  background-color: #005bb5;
+}
+
+/* Option text styling */
+.option-text {
+  font-size: 16px;
+  color: #007aff;
+  cursor: pointer;
+  margin: 0 10px;
+}
+
+.option-text:hover {
+  text-decoration: underline;
+}
+
+/* Dropdown styling */
 .dropdown {
   position: absolute;
   background: white;
   border: 1px solid #ccc;
   border-radius: 6px;
   width: 100%;
+  max-width: 400px; /* Set a maximum width */
   max-height: 200px;
   overflow-y: auto;
   z-index: 1000;
+  margin-top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .dropdown li {
-  padding: 10px;
+  padding: 0;
   cursor: pointer;
   font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
@@ -243,31 +350,119 @@ const selectOption = (option) => {
   background: #f0f0f0;
 }
 
-.shares-input {
-  width: 100%;
+.result-item {
+  display: flex;
+  flex-direction: column;
   padding: 10px;
-  margin: 10px 0;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  border-bottom: 1px solid #ccc;
 }
 
-.add-button {
-  padding: 10px 15px;
-  background: #007bff;
-  color: white;
-  border: none;
-  cursor: pointer;
-  border-radius: 6px;
-  font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;
+.result-symbol {
+  font-weight: bold;
+  font-size: 1rem;
+  color: #333;
 }
 
-.add-button:hover {
-  background: #0056b3;
+.result-name {
+  font-size: 0.875rem;
+  color: #666;
 }
 
 .error-message {
   color: red;
   margin-top: 10px;
+}
+
+/* Add spacing between elements */
+.input-container, .add-company-button, .company-finder, .bulk-import, .error-message, .shares-input, .add-button {
+  margin-bottom: 20px;
+  position: relative;
+}
+
+/* Modal styling */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  width: 500px;
+  position: relative;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+/* Sub-heading styling */
+.sub-heading {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+/* Back button styling */
+.back-button {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #007aff;
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+
+.back-button:hover {
+  text-decoration: underline;
+}
+
+/* Switch input styling */
+.switch-input {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.switch-input span {
+  cursor: pointer;
+  font-size: 14px;
+  color: #007aff;
+  margin: 0 5px;
+}
+
+.switch-input span.active {
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+/* Selected stock styling */
+.selected-stock {
+  margin-bottom: 20px; /* Add margin to create space between the selected stock text and the input box */
 }
 </style>

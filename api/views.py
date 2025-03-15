@@ -8,7 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime
 import json
 import re
-from .models import User, PortfolioStock  # Ensure PortfolioStock model exists
+from .models import User, PortfolioStock, UserPreferences  # Ensure PortfolioStock model exists
 from django.contrib.auth.decorators import login_required
 import requests
 from yahoo_fin import stock_info
@@ -168,25 +168,68 @@ def logout_view(request):
     return json_response({'success': True, 'redirect': '/account/login/'})
 
 @csrf_exempt
+@login_required
 def preferences_view(request):
+    user = request.user
+
+    if request.method == 'GET':
+        try:
+            preferences = UserPreferences.objects.get(user=user)
+            return json_response({
+                'success': True,
+                'preferences': {
+                    'investment_type': preferences.investment_type,
+                    'risk_level': preferences.risk_level,
+                    'investment_strategy': preferences.investment_strategy,
+                    'esg_factors': preferences.esg_factors,
+                    'industry_preferences': preferences.industry_preferences,
+                    'exclusions': preferences.exclusions,
+                    'sentiment_analysis': preferences.sentiment_analysis,
+                    'transparency_level': preferences.transparency_level,
+                }
+            })
+        except UserPreferences.DoesNotExist:
+            return json_response({'success': True, 'preferences': {}})
+
     if request.method == 'POST':
         data = parse_json_request(request)
         if not data:
             return json_response({'success': False, 'errors': 'Invalid JSON'}, status=400)
 
+        # Extract preferences data from the request
         investment_type = data.get('investmentType')
         risk_level = data.get('riskLevel')
+        investment_strategy = data.get('investmentStrategy')
+        esg_factors = data.get('esgFactors', [])
+        industry_preferences = data.get('industryPreferences', [])
+        exclusions = data.get('exclusions', [])
+        sentiment_analysis = data.get('sentimentAnalysis')
+        transparency_level = data.get('transparencyLevel')
 
-        if not investment_type or not risk_level:
-            return json_response({'success': False, 'errors': 'All fields are required'}, status=400)
+        # Validate required fields
+        if not investment_type or not risk_level or not investment_strategy or not sentiment_analysis or not transparency_level:
+            return json_response({'success': False, 'errors': 'All required fields must be filled'}, status=400)
 
-        user = request.user
-        user.investment_type = investment_type
-        user.risk_level = risk_level
+        # Get or create the user's preferences
+        preferences, _ = UserPreferences.objects.get_or_create(user=user)
+
+        # Update the preferences
+        preferences.investment_type = investment_type
+        preferences.risk_level = risk_level
+        preferences.investment_strategy = investment_strategy
+        preferences.esg_factors = esg_factors
+        preferences.industry_preferences = industry_preferences
+        preferences.exclusions = exclusions
+        preferences.sentiment_analysis = sentiment_analysis
+        preferences.transparency_level = transparency_level
+        preferences.save()
+
+        # Mark the user's preferences as completed
         user.preferences_completed = True
         user.save()
 
-        return json_response({'success': True})
+        return json_response({'success': True, 'message': 'Preferences saved successfully'})
+
     return json_response({'error': 'Invalid request method'}, status=400)
 
 @csrf_exempt
@@ -233,6 +276,8 @@ def add_stock(request):
         data = json.loads(request.body)
         symbol = data.get("symbol")
         shares = int(data.get("shares", 0))
+        amount_invested = data.get("amountInvested")
+        price_bought_at = data.get("priceBoughtAt")
         user = request.user
 
         if not symbol or shares <= 0:
@@ -247,11 +292,13 @@ def add_stock(request):
         # Save to portfolio
         stock, created = PortfolioStock.objects.get_or_create(
             user=user, symbol=symbol,
-            defaults={"shares": shares, "price": price}
+            defaults={"shares": shares, "price": price, "amount_invested": amount_invested, "price_bought_at": price_bought_at}
         )
 
         if not created:
             stock.shares += shares
+            stock.amount_invested = amount_invested
+            stock.price_bought_at = price_bought_at
             stock.save()
 
         return JsonResponse({"message": "Stock added successfully"})
@@ -290,9 +337,14 @@ def search_company(request):
                 "name": item["2. name"],
                 "region": item["4. region"],
                 "currency": item["8. currency"],
+                "matchScore": float(item["9. matchScore"])
             }
             for item in data["bestMatches"]
         ]
+
+        # Sort results by match score in descending order
+        results.sort(key=lambda x: x["matchScore"], reverse=True)
+
         return JsonResponse({"results": results})
     except KeyError as e:
         print(f"KeyError: {e}")  # Debugging log
