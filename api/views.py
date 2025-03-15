@@ -12,14 +12,8 @@ from .models import User, PortfolioStock  # Ensure PortfolioStock model exists
 from django.contrib.auth.decorators import login_required
 import requests
 from yahoo_fin import stock_info
-import logging
-from yahooquery import Ticker
-import yfinance as yf
 
-ALPHA_VANTAGE_API_KEY = "PNPAH7B7UT76I8OI"
-
-# Configure logging
-logger = logging.getLogger(__name__)
+ALPHA_VANTAGE_API_KEY = 'PNPAH7B7UT76I8OI'
 
 def json_response(data, status=200):
     return JsonResponse(data, status=status)
@@ -270,27 +264,26 @@ def remove_stock(request, stock_id):
     stock.delete()
     return JsonResponse({"message": "Stock removed successfully"})
 
-# Search for companies using Yahoo Finance
+# Search for companies using Alpha Vantage
 @csrf_exempt
 def search_company(request):
     """Fetch matching company names from Alpha Vantage."""
     company = request.GET.get("query", "").strip()
-    logger.info(f"Received search query: {company}")  # Add logging
+    print(f"Query received: {company}")  # Debugging log
     if not company:
         return JsonResponse({"error": "No query provided"}, status=400)
 
     try:
-        # API endpoint from Alpha Vantage's documentation
         url = f'https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords={company}&apikey={ALPHA_VANTAGE_API_KEY}'
+        print(f"Requesting Alpha Vantage API: {url}")  # Debugging log
         r = requests.get(url)
-        data = r.json()
-        return data
-        logger.info(f"Alpha Vantage response: {data}")  # Add logging
+        print(f"Alpha Vantage response status: {r.status_code}")  # Debugging log
+        print(f"Alpha Vantage response: {r.text}")  # Debugging log
 
+        data = r.json()
         if "bestMatches" not in data:
             return JsonResponse({"error": "No results found"}, status=404)
 
-        # Format the data correctly
         results = [
             {
                 "symbol": item["1. symbol"],
@@ -300,10 +293,10 @@ def search_company(request):
             }
             for item in data["bestMatches"]
         ]
-
-        logger.info(f"Formatted results: {results}")  # Add logging
         return JsonResponse({"results": results})
-
+    except KeyError as e:
+        print(f"KeyError: {e}")  # Debugging log
+        return JsonResponse({"error": f"Unexpected response format: {str(e)}"}, status=500)
     except Exception as e:
-        logger.error(f"Error fetching companies: {e}")  # Add logging
+        print(f"Exception: {e}")  # Debugging log
         return JsonResponse({"error": str(e)}, status=500)

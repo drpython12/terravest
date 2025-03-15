@@ -22,16 +22,16 @@
           v-model="searchQuery"
           placeholder="Search for a company..."
           class="search-input"
-          @input="fetchCompanies"
         />
+        <button @click="fetchCompanies" class="search-button">🔍</button>
+        <ul v-if="searchResults.length" class="dropdown">
+          <li v-for="(company, index) in searchResults"
+              :key="index"
+              @click="selectCompany(company)">
+            {{ company.name }} ({{ company.symbol }}) - {{ company.region }} [{{ company.currency }}]
+          </li>
+        </ul>
       </div>
-      <ul v-if="searchResults.length">
-        <li>v-for="(company, index) in searchResults"
-          :key="index"
-          @click="selectCompany(company)"
-          {{ company.name }} ({{ company.symbol }}) - {{ company.region }} [{{ company.currency }}]
-      </li>
-      </ul>
       <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
       <div v-if="selectedStock">
         <p>Selected: {{ selectedStock.name }} ({{ selectedStock.symbol }})</p>
@@ -46,7 +46,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from "vue";
+import { ref } from "vue";
 import axios from "axios";
 import HoldingsTable from "../components/HoldingsTable.vue";
 
@@ -58,45 +58,18 @@ const dropdownOpen = ref(false);
 const showCompanyFinder = ref(false);
 const errorMessage = ref("");
 
-const searchCompany = async (query) => {
-  if (!searchQuery.value.trim()) {
-        searchResults.value = [];
-        return;
-    }
-    try {
-        let response = await axios.get(`/search-company/`, {
-            params: { query: searchQuery.value.trim() }
-        });
-
-        if (response.data.results) {
-            searchResults.value = response.data.results;
-        } else {
-            searchResults.value = [];
-        }
-    } catch (error) {
-        console.error("Error fetching company data:", error);
-        searchResults.value = [];
-    }
-};
-
 const fetchCompanies = async () => {
-  if (searchQuery.value.length < 2) return; // Only fetch after 2+ characters
-
-  console.log(`Fetching companies for query: ${searchQuery.value}`); // Debugging log
-
-  errorMessage.value = "";
   try {
-    const response = await axios.get(`/api/search-companies/`, {
+    const response = await axios.get(`http://localhost:8000/search-company/`, {
       params: {
         query: searchQuery.value
       }
     });
-    console.log("Full response:", response); // Debugging log
-    console.log("Search results:", response.data.results); // Debugging log
+    console.log("API Response:", response.data); // Debugging log
     searchResults.value = response.data.results || [];
   } catch (error) {
-    console.error("Failed to search companies:", error);
-    errorMessage.value = "Failed to search companies. Please try again.";
+    console.error("Error fetching companies:", error);
+    errorMessage.value = error.response?.data?.error || "Failed to search companies. Please try again.";
   }
 };
 
@@ -113,7 +86,7 @@ const addStock = async () => {
   }
 
   try {
-    await axios.post("/api/add-stock", {
+    await axios.post("/api/add-stock/", {
       symbol: selectedStock.value.symbol,
       shares: shares.value,
     });
@@ -133,8 +106,6 @@ const selectOption = (option) => {
     // Implement bulk import functionality here
   }
 };
-
-watch(searchQuery, fetchCompanies);
 </script>
 
 <style scoped>
@@ -225,15 +196,51 @@ watch(searchQuery, fetchCompanies);
 .input-container {
   position: relative;
   width: 100%;
+  display: flex;
 }
 
 .search-input {
-  width: 100%;
+  flex: 1;
   padding: 10px;
-  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px 0 0 6px;
+  font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.search-button {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+  background: #007bff;
+  color: white;
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.search-button:hover {
+  background: #0056b3;
+}
+
+.dropdown {
+  position: absolute;
+  background: white;
   border: 1px solid #ccc;
   border-radius: 6px;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.dropdown li {
+  padding: 10px;
+  cursor: pointer;
   font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.dropdown li:hover {
+  background: #f0f0f0;
 }
 
 .shares-input {
