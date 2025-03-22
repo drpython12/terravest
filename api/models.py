@@ -45,9 +45,9 @@ class PortfolioStock(models.Model):
     Model representing a stock in a user's portfolio.
     """
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    symbol = models.CharField(max_length=10)
+    symbol = models.CharField(max_length=10)  # Ticker
+    company_name = models.CharField(max_length=100)  # New field for company name
     shares = models.PositiveIntegerField()
-    price = models.DecimalField(max_digits=10, decimal_places=2)
     amount_invested = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     price_bought_at = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     added_at = models.DateTimeField(auto_now_add=True)
@@ -56,7 +56,7 @@ class PortfolioStock(models.Model):
         """
         Return a string representation of the portfolio stock.
         """
-        return f"{self.symbol} - {self.user.email}"
+        return f"{self.company_name} ({self.symbol}) - {self.user.email}"
 
 
 class UserPreferences(models.Model):
@@ -98,3 +98,31 @@ class UserPreferences(models.Model):
         Return a string representation of the user's preferences.
         """
         return f"Preferences for {self.user.email}"
+
+    def to_dict(self):
+        """
+        Convert the UserPreferences instance to a dictionary.
+        """
+        return {
+            "investment_type": self.investment_type,
+            "risk_level": self.risk_level,
+            "investment_strategy": self.investment_strategy,
+            "esg_factors": self.esg_factors,
+            "industry_preferences": self.industry_preferences,
+            "exclusions": self.exclusions,
+            "sentiment_analysis": self.sentiment_analysis,
+            "transparency_level": self.transparency_level,
+        }
+
+    def update_from_dict(self, data):
+        """
+        Update the UserPreferences instance with data from a dictionary.
+        """
+        self.investment_type = data.get('investmentType', self.investment_type)
+        self.risk_level = data.get('riskLevel', self.risk_level)
+        self.investment_strategy = data.get('investmentStrategy', self.investment_strategy)
+        self.esg_factors = data.get('esgFactors', self.esg_factors)
+        self.industry_preferences = data.get('industryPreferences', self.industry_preferences)
+        self.exclusions = data.get('exclusions', self.exclusions)
+        self.sentiment_analysis = data.get('sentimentAnalysis', self.sentiment_analysis)
+        self.transparency_level = data.get('transparencyLevel', self.transparency_level)

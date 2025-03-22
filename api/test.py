@@ -1,8 +1,13 @@
-import requests
-ALPHA_VANTAGE_API_KEY = "PNPAH7B7UT76I8OI"
-company = "goog"
-url = f'https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords={company}&apikey={ALPHA_VANTAGE_API_KEY}'
-r = requests.get(url)
-data = r.json()
+import http.client
 
-print(data)
+conn = http.client.HTTPSConnection("yahoo-finance-real-time1.p.rapidapi.com")
+
+headers = {
+    'x-rapidapi-key': "c4cf9f510cmsh80ee50ea6a7d2b3p171c27jsnab5350889c90",
+    'x-rapidapi-host': "yahoo-finance-real-time1.p.rapidapi.com"
+}
+
+conn.request("GET", "/stock/get-quote-summary?symbol=WOOF&lang=en-US&region=US", headers=headers)
+
+res = conn.getresponse()
+print(res.read().decode("utf-8"))

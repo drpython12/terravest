@@ -68,7 +68,7 @@
                 v-if="inputType === 'amount'"
                 type="number"
                 v-model="amountInvested"
-                placeholder="Amount invested"
+                placeholder="Amount invested ($)"
                 class="shares-input"
               />
               <div class="switch-input">
@@ -86,14 +86,14 @@
                   Amount invested
                 </span>
               </div>
-            </div>
-            <div class="input-container">
-              <input
-                type="number"
-                v-model="priceBoughtAt"
-                :placeholder="priceBoughtAtPlaceholder"
-                class="shares-input"
-              />
+              <div class="input-container">
+                <input
+                  type="number"
+                  v-model="priceBoughtAt"
+                  placeholder="Price Bought At (per share)"
+                  class="shares-input"
+                />
+              </div>
             </div>
             <button @click="addStock" class="add-button">Add to Portfolio</button>
           </div>
@@ -116,35 +116,29 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
-import axios from "axios";
+import { ref } from "vue";
+import axiosInstance from "../axiosConfig";
 import HoldingsTable from "../components/HoldingsTable.vue";
 
 const searchQuery = ref("");
 const searchResults = ref([]);
 const selectedStock = ref(null);
-const shares = ref(null); // Ensure shares is null initially
-const amountInvested = ref(null); // Ensure amountInvested is null initially
-const priceBoughtAt = ref(null); // Ensure priceBoughtAt is null initially
-const inputType = ref("shares"); // Default input type is shares
+const shares = ref(null);
+const amountInvested = ref(null);
+const priceBoughtAt = ref(null);
+const inputType = ref("shares");
 const showModal = ref(false);
 const selectedOption = ref(null);
 const companySelected = ref(false);
 const errorMessage = ref("");
 const file = ref(null);
 
-const priceBoughtAtPlaceholder = computed(() => {
-  return inputType.value === "shares"
-    ? "Price Bought At (optional)"
-    : "Price Bought At (mandatory)";
-});
-
 const fetchCompanies = async () => {
   try {
-    const response = await axios.get(`http://localhost:8000/search-company/`, {
+    const response = await axiosInstance.get("/search-company/", {
       params: {
-        query: searchQuery.value
-      }
+        query: searchQuery.value,
+      },
     });
     console.log("API Response:", response.data); // Debugging log
     searchResults.value = response.data.results || [];
@@ -160,8 +154,8 @@ const selectCompany = (company) => {
 };
 
 const addStock = async () => {
-  if (inputType.value === "shares" && (!selectedStock.value || shares.value <= 0)) {
-    alert("Please select a stock and enter a valid number of shares.");
+  if (inputType.value === "shares" && (!selectedStock.value || shares.value <= 0 || priceBoughtAt.value <= 0)) {
+    alert("Please select a stock, enter a valid number of shares, and enter a valid price bought at.");
     return;
   }
 
@@ -171,18 +165,18 @@ const addStock = async () => {
   }
 
   try {
-    await axios.post("http://localhost:8000/api/add-stock/", {
+    await axiosInstance.post("/add-stock/", {
       symbol: selectedStock.value.symbol,
-      name: selectedStock.value.name,
-      shares: inputType.value === "shares" ? shares.value : amountInvested.value / priceBoughtAt.value,
+      name: selectedStock.value.name,  // Include company name
+      shares: inputType.value === "shares" ? shares.value : null,
       amountInvested: inputType.value === "amount" ? amountInvested.value : null,
-      priceBoughtAt: priceBoughtAt.value || null,
+      priceBoughtAt: priceBoughtAt.value,
     });
     selectedStock.value = null;
-    shares.value = null; // Reset shares to null after adding stock
-    amountInvested.value = null; // Reset amountInvested to null after adding stock
-    priceBoughtAt.value = null; // Reset priceBoughtAt to null after adding stock
-    closeModal(); // Close the modal after adding stock
+    shares.value = null;
+    amountInvested.value = null;
+    priceBoughtAt.value = null;
+    closeModal();
   } catch (error) {
     console.error("Failed to add stock:", error);
   }
@@ -198,7 +192,7 @@ const closeModal = () => {
   priceBoughtAt.value = null;
   selectedOption.value = null;
   companySelected.value = false;
-  inputType.value = "shares"; // Reset input type to shares
+  inputType.value = "shares";
 };
 
 const selectOption = (option) => {
@@ -224,7 +218,7 @@ const uploadFile = async () => {
   formData.append("file", file.value);
 
   try {
-    await axios.post("/api/bulk-import/", formData, {
+    await axiosInstance.post("/bulk-import/", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
@@ -245,9 +239,11 @@ const uploadFile = async () => {
   background: white;
   padding: 40px;
   border-radius: 10px;
-  width: 500px;
+  width: 90%;
+  max-width: 1200px;
   margin: auto;
   margin-top: 50px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 /* Title styling */
@@ -284,7 +280,7 @@ const uploadFile = async () => {
 .search-button {
   position: absolute;
   right: 10px;
-  top: 50%;
+  top: 42%;
   transform: translateY(-50%);
   background: none;
   border: none;
@@ -374,7 +370,7 @@ const uploadFile = async () => {
 }
 
 /* Add spacing between elements */
-.input-container, .add-company-button, .company-finder, .bulk-import, .error-message, .shares-input, .add-button {
+.input-container, .add-company-button, .company-finder, .bulk-import, .error-message, .add-button {
   margin-bottom: 20px;
   position: relative;
 }
@@ -446,7 +442,7 @@ const uploadFile = async () => {
 .switch-input {
   display: flex;
   justify-content: center;
-  margin-top: 10px;
+  margin: 20px 0; /* Adjusted margin to create even spacing */
 }
 
 .switch-input span {

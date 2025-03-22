@@ -10,7 +10,7 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     async fetchUser() {
       try {
-        const response = await axiosInstance.get('/api/app-data');
+        const response = await axiosInstance.get('/app-data');
         this.isLoggedIn = response.data.isLoggedIn;
         this.user = response.data.user;
       } catch (error) {

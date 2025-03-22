@@ -40,7 +40,7 @@ export default {
   },
   async created() {
     try {
-      const response = await axios.get('/api/title');
+      const response = await axios.get('/title');
       this.title = response.data;
     } catch (error) {
       console.error(error);

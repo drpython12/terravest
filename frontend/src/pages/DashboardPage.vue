@@ -75,7 +75,7 @@ const esgTrends = ref([]);
 const topHoldings = ref([]);
 
 const loadDashboardData = async () => {
-  const response = await axios.get("/api/dashboard");
+  const response = await axios.get("/dashboard");
   portfolioValue.value = response.data.portfolio_value;
   esgScore.value = response.data.overall_esg_score;
   performanceChange.value = response.data.portfolio_performance_change;
