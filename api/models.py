@@ -64,12 +64,6 @@ class UserPreferences(models.Model):
     Model to store user preferences.
     """
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="preferences")
-    investment_type = models.CharField(max_length=50, choices=[
-        ('stocks', 'Stocks'),
-        ('bonds', 'Bonds'),
-        ('real_estate', 'Real Estate'),
-        ('crypto', 'Cryptocurrency'),
-    ])
     risk_level = models.CharField(max_length=10, choices=[
         ('low', 'Low'),
         ('medium', 'Medium'),

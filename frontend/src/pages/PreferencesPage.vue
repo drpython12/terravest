@@ -2,17 +2,6 @@
   <div class="container">
     <h2 class="title">Investor Preferences</h2>
     <form @submit.prevent="submitPreferences">
-      <!-- Investment Type -->
-      <div class="input-container">
-        <label for="investmentType">Preferred Investment Type</label>
-        <select v-model="investmentType" id="investmentType" class="input-box">
-          <option value="stocks">Stocks</option>
-          <option value="bonds">Bonds</option>
-          <option value="real_estate">Real Estate</option>
-          <option value="crypto">Cryptocurrency</option>
-        </select>
-      </div>
-
       <!-- Risk Level -->
       <div class="input-container">
         <label for="riskLevel">Risk Level</label>
