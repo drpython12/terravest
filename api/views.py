@@ -213,7 +213,7 @@ def preferences_view(request):
         if not data:
             return json_response({'success': False, 'errors': 'Invalid JSON'}, status=400)
 
-        required_fields = ['investmentType', 'riskLevel', 'investmentStrategy', 'sentimentAnalysis', 'transparencyLevel']
+        required_fields = ['riskLevel', 'investmentStrategy', 'sentimentAnalysis', 'transparencyLevel']
         if not all(data.get(field) for field in required_fields):
             return json_response({'success': False, 'errors': 'All required fields must be filled'}, status=400)
 

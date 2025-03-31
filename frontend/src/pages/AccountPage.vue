@@ -73,7 +73,7 @@ export default {
     async checkUserExists() {
       this.loading = true;
       try {
-        const response = await axios.post(`http://localhost:8000/account/check-user/`, { email: this.email });
+        const response = await axios.post(`api/account/check-user/`, { email: this.email });
         if (response.data.exists) {
           this.showPassword = true;
           this.userNotFoundError = false;
@@ -105,7 +105,7 @@ export default {
 
       this.loading = true;
       try {
-        const response = await axios.post(`http://localhost:8000/account/login/`, { email: this.email, password: this.password });
+        const response = await axios.post(`api/account/login/`, { email: this.email, password: this.password });
         if (response.data.success) {
           this.successMessage = "Login successful! Redirecting...";
           setTimeout(() => window.location.href = "/dashboard", 2000);

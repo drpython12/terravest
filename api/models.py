@@ -98,7 +98,6 @@ class UserPreferences(models.Model):
         Convert the UserPreferences instance to a dictionary.
         """
         return {
-            "investment_type": self.investment_type,
             "risk_level": self.risk_level,
             "investment_strategy": self.investment_strategy,
             "esg_factors": self.esg_factors,
@@ -112,7 +111,6 @@ class UserPreferences(models.Model):
         """
         Update the UserPreferences instance with data from a dictionary.
         """
-        self.investment_type = data.get('investmentType', self.investment_type)
         self.risk_level = data.get('riskLevel', self.risk_level)
         self.investment_strategy = data.get('investmentStrategy', self.investment_strategy)
         self.esg_factors = data.get('esgFactors', self.esg_factors)

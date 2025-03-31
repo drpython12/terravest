@@ -87,7 +87,6 @@ import axiosInstance from '../axiosConfig';
 export default {
   data() {
     return {
-      investmentType: '',
       riskLevel: '',
       investmentStrategy: '',
       esgFactors: [],
@@ -103,7 +102,6 @@ export default {
         const response = await axiosInstance.get('/account/preferences/');
         if (response.data.success) {
           const preferences = response.data.preferences;
-          this.investmentType = preferences.investment_type || '';
           this.riskLevel = preferences.risk_level || '';
           this.investmentStrategy = preferences.investment_strategy || '';
           this.esgFactors = preferences.esg_factors || [];
@@ -119,7 +117,6 @@ export default {
     async submitPreferences() {
       try {
         const response = await axiosInstance.post('/account/preferences/', {
-          investmentType: this.investmentType,
           riskLevel: this.riskLevel,
           investmentStrategy: this.investmentStrategy,
           esgFactors: this.esgFactors,

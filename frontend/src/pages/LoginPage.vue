@@ -74,7 +74,7 @@ export default {
     async checkUserExists() {
       this.loading = true;
       try {
-        const response = await axiosInstance.post('/account/check-user/', { email: this.email });
+        const response = await axiosInstance.post('/api/account/check-user/', { email: this.email }); // Updated URL }); // Updated URL
         if (response.data.exists) {
           this.showPassword = true;
           this.userNotFoundError = false;
