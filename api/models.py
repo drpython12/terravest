@@ -118,3 +118,44 @@ class UserPreferences(models.Model):
         self.exclusions = data.get('exclusions', self.exclusions)
         self.sentiment_analysis = data.get('sentimentAnalysis', self.sentiment_analysis)
         self.transparency_level = data.get('transparencyLevel', self.transparency_level)
+
+
+class ESGCompany(models.Model):
+    orgperm_id = models.BigIntegerField(unique=True)
+    ticker = models.CharField(max_length=10)
+    name = models.CharField(max_length=255)
+    isin = models.CharField(max_length=20, blank=True)
+    siccode = models.CharField(max_length=10, blank=True)
+    industry = models.CharField(max_length=100, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['ticker']),
+            models.Index(fields=['orgperm_id']),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.ticker})"
+
+
+class ESGMetric(models.Model):
+    company = models.ForeignKey(ESGCompany, related_name='metrics', on_delete=models.CASCADE)
+    year = models.PositiveIntegerField()
+    fieldid = models.PositiveIntegerField()
+    hierarchy = models.CharField(max_length=50)
+    pillar = models.CharField(max_length=50)
+    fieldname = models.CharField(max_length=100)
+    valuedate = models.DateField()
+    value = models.CharField(max_length=5)
+    valuescore = models.FloatField()
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['year']),
+            models.Index(fields=['fieldname']),
+            models.Index(fields=['pillar']),
+            models.Index(fields=['valuescore']),
+        ]
+
+    def __str__(self):
+        return f"{self.company.ticker} | {self.year} | {self.fieldname} = {self.valuescore}"
