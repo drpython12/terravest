@@ -1,6 +1,6 @@
 <template>
   <div class="portfolio-container">
-    <table v-if="portfolio.length > 0" class="holdings-table" table>
+    <table v-if="isDataReady" class="holdings-table">
       <thead>
         <tr>
           <th>Company Name</th>
@@ -9,7 +9,6 @@
           <th>Market Value</th>
           <th>% Return</th>
           <th>$ Return</th>
-          <th>ESG Score</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -17,17 +16,10 @@
         <tr v-for="stock in portfolio" :key="stock.id">
           <td>{{ stock.company_name }}</td>
           <td>{{ stock.symbol }}</td>
-          <td v-if="stock.livePrice">${{ stock.livePrice.toFixed(2) }}</td>
-          <td v-else>Loading...</td>
-          <td v-if="stock.livePrice">${{ (stock.shares * stock.livePrice).toFixed(2) }}</td>
-          <td v-else>Loading...</td>
-          <td v-if="stock.livePrice">
-            {{ calculatePercentageReturn(stock).toFixed(2) }}%
-          </td>
-          <td v-if="stock.livePrice">
-            ${{ calculateDollarReturn(stock).toFixed(2) }}
-          </td>
-          <td>{{ stock.esg_score }}</td>
+          <td>${{ stock.livePrice.toFixed(2) }}</td>
+          <td>${{ (stock.shares * stock.livePrice).toFixed(2) }}</td>
+          <td>{{ calculatePercentageReturn(stock).toFixed(2) }}%</td>
+          <td>${{ calculateDollarReturn(stock).toFixed(2) }}</td>
           <td>
             <button class="edit-btn" @click="editStock(stock)">✏️ Edit</button>
             <button class="remove-btn" @click="removeStock(stock.id)">❌ Remove</button>
@@ -35,7 +27,7 @@
         </tr>
       </tbody>
     </table>
-    <p v-else>You don't have any holdings yet. Start adding companies to your portfolio!</p>
+    <p v-else>Loading your portfolio...</p>
   </div>
 </template>
 
@@ -44,6 +36,7 @@ import { ref, onMounted } from "vue";
 import axiosInstance from "../axiosConfig";
 
 const portfolio = ref([]);
+const isDataReady = ref(false);
 
 const loadPortfolio = async () => {
   try {
@@ -52,10 +45,14 @@ const loadPortfolio = async () => {
 
     if (portfolio.value.length > 0) {
       // Fetch live prices for all stocks
-      for (let stock of portfolio.value) {
-        await updateStockPrice(stock);
-      }
+      await Promise.all(
+        portfolio.value.map(async (stock) => {
+          await updateStockPrice(stock);
+        })
+      );
     }
+
+    isDataReady.value = true; // Mark data as ready after all calculations
   } catch (error) {
     console.error("Failed to fetch portfolio:", error);
   }

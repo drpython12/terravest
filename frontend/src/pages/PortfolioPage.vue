@@ -10,6 +10,23 @@
       <button class="green-button" @click="showModal = true">+ Add Company</button>
     </div>
 
+    <!-- Financial | ESG Toggle -->
+    <div class="toggle-options">
+      <span
+        :class="{ active: selectedTab === 'financial' }"
+        @click="selectedTab = 'financial'"
+      >
+        Financial
+      </span>
+      |
+      <span
+        :class="{ active: selectedTab === 'esg' }"
+        @click="selectedTab = 'esg'"
+      >
+        ESG
+      </span>
+    </div>
+
     <!-- Modal for Add Company -->
     <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
       <div class="modal-content">
@@ -110,8 +127,9 @@
       </div>
     </div>
 
-    <!-- Holdings Table -->
-    <HoldingsTable />
+    <!-- Display Tables Based on Selected Tab -->
+    <HoldingsTable v-if="selectedTab === 'financial'" />
+    <ESGTable v-else />
   </div>
 </template>
 
@@ -119,6 +137,7 @@
 import { ref } from "vue";
 import axiosInstance from "../axiosConfig";
 import HoldingsTable from "../components/HoldingsTable.vue";
+import ESGTable from "../components/ESGTable.vue";
 
 const searchQuery = ref("");
 const searchResults = ref([]);
@@ -132,6 +151,7 @@ const selectedOption = ref(null);
 const companySelected = ref(false);
 const errorMessage = ref("");
 const file = ref(null);
+const selectedTab = ref("financial"); // Default to Financial
 
 const fetchCompanies = async () => {
   try {
@@ -460,5 +480,27 @@ const uploadFile = async () => {
 /* Selected stock styling */
 .selected-stock {
   margin-bottom: 20px; /* Add margin to create space between the selected stock text and the input box */
+}
+
+/* Add styles for the toggle options */
+.toggle-options {
+  margin: 20px 0;
+  font-size: 16px;
+  color: #007aff;
+  cursor: pointer;
+}
+
+.toggle-options span {
+  margin: 0 10px;
+  cursor: pointer;
+}
+
+.toggle-options span.active {
+  font-weight: bold;
+}
+
+/* Add hover underline for toggle options */
+.toggle-options span:hover {
+  text-decoration: underline;
 }
 </style>
