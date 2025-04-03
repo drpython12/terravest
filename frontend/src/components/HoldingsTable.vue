@@ -14,7 +14,12 @@
       </thead>
       <tbody>
         <tr v-for="stock in portfolio" :key="stock.id">
-          <td>{{ stock.company_name }}</td>
+          <!-- Make the company name clickable -->
+          <td>
+            <router-link :to="`/company/${stock.symbol}`" class="company-link">
+              {{ stock.company_name }}
+            </router-link>
+          </td>
           <td>{{ stock.symbol }}</td>
           <td>${{ stock.livePrice.toFixed(2) }}</td>
           <td>${{ (stock.shares * stock.livePrice).toFixed(2) }}</td>
@@ -129,6 +134,16 @@ onMounted(loadPortfolio);
 .holdings-table th {
   background-color: #f4f4f4;
   font-weight: bold;
+}
+
+.company-link {
+  color: #007aff;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.company-link:hover {
+  text-decoration: underline;
 }
 
 .edit-btn,
