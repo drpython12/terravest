@@ -126,7 +126,6 @@ class ESGCompany(models.Model):
     name = models.CharField(max_length=255)
     isin = models.CharField(max_length=20, blank=True)
     siccode = models.CharField(max_length=10, blank=True)
-    industry = models.CharField(max_length=100, blank=True)
 
     class Meta:
         indexes = [

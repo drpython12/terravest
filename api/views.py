@@ -11,17 +11,21 @@ from django.core.validators import validate_email
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.csrf import csrf_exempt
+from django.db.models import Avg, Max, Min
+from django.core.paginator import Paginator
 
 from yahoo_fin import stock_info  # Ensure yahoo_fin is installed
 
-from .models import PortfolioStock, User, UserPreferences
+from .models import PortfolioStock, User, UserPreferences, ESGCompany, ESGMetric
+
+from django.core.cache import cache
 
 ALPHA_VANTAGE_API_KEY = 'PNPAH7B7UT76I8OI'
 
 
 def json_response(data, status=200):
     """Helper function to return JSON responses."""
-    return JsonResponse(data, status=status)
+    return JsonResponse(data, status=status, safe=isinstance(data, dict))
 
 
 def parse_json_request(request):
@@ -365,3 +369,55 @@ def search_company(request):
         return json_response({"results": results})
     except Exception as e:
         return json_response({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@login_required
+def get_esg_data(request):
+    """Fetch ESG data for companies in the user's portfolio."""
+    if request.method == "GET":
+        user = request.user
+
+        # Get the companies in the user's portfolio
+        portfolio_stocks = PortfolioStock.objects.filter(user=user)
+        company_symbols = portfolio_stocks.values_list("symbol", flat=True)
+
+        # Fetch ESG data for these companies
+        companies = ESGCompany.objects.filter(ticker__in=company_symbols)
+
+        esg_data = []
+        for company in companies:
+            # Get the latest year for the company's metrics
+            latest_year = ESGMetric.objects.filter(company=company).aggregate(latest_year=Max("year"))["latest_year"]
+
+            # Fetch metrics for the latest year only
+            metrics = ESGMetric.objects.filter(company=company, year=latest_year)
+
+            # Fetch specific pillar scores directly from the database
+            environmental_score = metrics.filter(fieldname="EnvironmentPillarScore").first()
+            social_score = metrics.filter(fieldname="SocialPillarScore").first()
+            governance_score = metrics.filter(fieldname="GovernancePillarScore").first()
+
+            # Normalize scores to 0-100 and round to integers
+            esg_data.append({
+                "id": company.id,
+                "company_name": company.name,
+                "symbol": company.ticker,
+                "environmental": round(environmental_score.valuescore * 100) if environmental_score else 0,
+                "social": round(social_score.valuescore * 100) if social_score else 0,
+                "governance": round(governance_score.valuescore * 100) if governance_score else 0,
+                "emissions": round(metrics.filter(fieldname="ESGEmissionsScore").first().valuescore * 100) if metrics.filter(fieldname="ESGEmissionsScore").exists() else 0,
+                "resource_use": round(metrics.filter(fieldname="ESGResourceUseScore").first().valuescore * 100) if metrics.filter(fieldname="ESGResourceUseScore").exists() else 0,
+                "innovation": round(metrics.filter(fieldname="ESGInnovationScore").first().valuescore * 100) if metrics.filter(fieldname="ESGInnovationScore").exists() else 0,
+                "human_rights": round(metrics.filter(fieldname="ESGHumanRightsScore").first().valuescore * 100) if metrics.filter(fieldname="ESGHumanRightsScore").exists() else 0,
+                "product_responsibility": round(metrics.filter(fieldname="ESGProductResponsibilityScore").first().valuescore * 100) if metrics.filter(fieldname="ESGProductResponsibilityScore").exists() else 0,
+                "workforce": round(metrics.filter(fieldname="ESGWorkforceScore").first().valuescore * 100) if metrics.filter(fieldname="ESGWorkforceScore").exists() else 0,
+                "community": round(metrics.filter(fieldname="ESGCommunityScore").first().valuescore * 100) if metrics.filter(fieldname="ESGCommunityScore").exists() else 0,
+                "management": round(metrics.filter(fieldname="ESGManagementScore").first().valuescore * 100) if metrics.filter(fieldname="ESGManagementScore").exists() else 0,
+                "shareholders": round(metrics.filter(fieldname="ESGShareholdersScore").first().valuescore * 100) if metrics.filter(fieldname="ESGShareholdersScore").exists() else 0,
+                "csr_strategy": round(metrics.filter(fieldname="ESGCsrStrategyScore").first().valuescore * 100) if metrics.filter(fieldname="ESGCsrStrategyScore").exists() else 0,
+            })
+
+        return json_response(esg_data)
+
+    return json_response({"error": "Invalid request method"}, status=400)
