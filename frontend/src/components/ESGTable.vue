@@ -5,7 +5,7 @@
         <h2 class="company-name">{{ company.company_name }} ({{ company.symbol }})</h2>
         <div class="esg-section">
           <h3 class="section-title">
-            <span class="environment-icon">🟣</span> Environment
+            <span class="environment-icon">🌲</span> Environment
             <span class="score">{{ company.environmental }}</span>
           </h3>
           <ul class="score-list">
@@ -16,7 +16,7 @@
         </div>
         <div class="esg-section">
           <h3 class="section-title">
-            <span class="social-icon">🟠</span> Social
+            <span class="social-icon">🌇</span> Social
             <span class="score">{{ company.social }}</span>
           </h3>
           <ul class="score-list">
@@ -28,7 +28,7 @@
         </div>
         <div class="esg-section">
           <h3 class="section-title">
-            <span class="governance-icon">🟢</span> Governance
+            <span class="governance-icon">👨‍⚖️</span> Governance
             <span class="score">{{ company.governance }}</span>
           </h3>
           <ul class="score-list">
