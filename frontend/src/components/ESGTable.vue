@@ -2,7 +2,15 @@
   <div class="portfolio-container">
     <div v-if="esgData.length > 0" class="esg-cards">
       <div v-for="company in esgData" :key="company.id" class="esg-card">
-        <h2 class="company-name">{{ company.company_name }} ({{ company.symbol }})</h2>
+        <h2 class="company-name">
+          {{ company.company_name }} ({{ company.symbol }})
+        </h2>
+        <div class="esg-section overall-esg-section">
+          <h3 class="section-title">
+            <span class="overall-icon">🌍</span> Overall ESG Score
+            <span class="score">{{ company.overall_esg_score }}</span>
+          </h3>
+        </div>
         <div class="esg-section">
           <h3 class="section-title">
             <span class="environment-icon">🌲</span> Environment
@@ -105,6 +113,12 @@ onMounted(loadESGData);
   margin-bottom: 20px;
 }
 
+.overall-esg-section {
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
 .section-title {
   display: flex;
   justify-content: space-between;
@@ -112,6 +126,10 @@ onMounted(loadESGData);
   font-size: 16px;
   font-weight: bold;
   margin-bottom: 10px;
+}
+
+.overall-icon {
+  color: #2196f3; /* Blue */
 }
 
 .environment-icon {

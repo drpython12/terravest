@@ -404,10 +404,12 @@ def get_company_esg_data(company):
     """Fetch ESG data for a single company."""
     latest_year = get_latest_year_for_company(company)
     metrics = ESGMetric.objects.filter(company=company, year=latest_year)
+    overall_esg_score = get_metric_score(metrics, "ESGScore")  # Fetch overall ESG score
     return {
         "id": company.id,
         "company_name": company.name,
         "symbol": company.ticker,
+        "overall_esg_score": overall_esg_score,  # Add overall ESG score
         "environmental": get_metric_score(metrics, "EnvironmentPillarScore"),
         "social": get_metric_score(metrics, "SocialPillarScore"),
         "governance": get_metric_score(metrics, "GovernancePillarScore"),

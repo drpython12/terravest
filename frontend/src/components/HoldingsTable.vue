@@ -7,6 +7,7 @@
           <th>Ticker</th>
           <th>Live Price</th>
           <th>Market Value</th>
+          <th>Weight</th>
           <th>% Return</th>
           <th>$ Return</th>
           <th>Actions</th>
@@ -23,6 +24,7 @@
           <td>{{ stock.symbol }}</td>
           <td>${{ stock.livePrice.toFixed(2) }}</td>
           <td>${{ (stock.shares * stock.livePrice).toFixed(2) }}</td>
+          <td>{{ calculateWeight(stock).toFixed(2) }}%</td>
           <td>{{ calculatePercentageReturn(stock).toFixed(2) }}%</td>
           <td>${{ calculateDollarReturn(stock).toFixed(2) }}</td>
           <td>
@@ -42,6 +44,7 @@ import axiosInstance from "../axiosConfig";
 
 const portfolio = ref([]);
 const isDataReady = ref(false);
+const totalPortfolioValue = ref(0);
 
 const loadPortfolio = async () => {
   try {
@@ -55,6 +58,11 @@ const loadPortfolio = async () => {
           await updateStockPrice(stock);
         })
       );
+
+      // Calculate the total portfolio value
+      totalPortfolioValue.value = portfolio.value.reduce((total, stock) => {
+        return total + stock.shares * stock.livePrice;
+      }, 0);
     }
 
     isDataReady.value = true; // Mark data as ready after all calculations
@@ -72,6 +80,11 @@ const updateStockPrice = async (stock) => {
   }
 };
 
+const calculateWeight = (stock) => {
+  const marketValue = stock.shares * stock.livePrice;
+  return (marketValue / totalPortfolioValue.value) * 100;
+};
+
 const calculatePercentageReturn = (stock) => {
   const marketValue = stock.shares * stock.livePrice;
   return ((marketValue - stock.amount_invested) / stock.amount_invested) * 100;
@@ -86,6 +99,11 @@ const removeStock = async (id) => {
   try {
     await axiosInstance.delete(`/remove-stock/${id}/`);
     portfolio.value = portfolio.value.filter((stock) => stock.id !== id);
+
+    // Recalculate the total portfolio value after removing a stock
+    totalPortfolioValue.value = portfolio.value.reduce((total, stock) => {
+      return total + stock.shares * stock.livePrice;
+    }, 0);
   } catch (error) {
     console.error("Failed to remove stock:", error);
   }
