@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "google-news-scraper": "^2.7.0"
+  }
+}
