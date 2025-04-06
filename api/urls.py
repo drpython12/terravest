@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import signup_view, login_view, check_user_exists, logout_view, preferences_view, app_data, update_settings, search_company, add_stock, get_portfolio, remove_stock, get_stock_price, get_esg_data
+from .views import signup_view, login_view, check_user_exists, logout_view, preferences_view, app_data, update_settings, search_company, add_stock, get_portfolio, remove_stock, get_stock_price, get_esg_data, get_dashboard_data
 
 urlpatterns = [
     path('api/account/signup/', signup_view, name='signup'),
@@ -15,4 +15,5 @@ urlpatterns = [
     path('api/remove-stock/<int:stock_id>/', remove_stock, name='remove_stock'),
     path('api/get-stock-price/', get_stock_price, name='get_stock_price'),
     path('api/get-esg-data/', get_esg_data, name='get_esg_data'),
+    path('api/dashboard/', get_dashboard_data, name='dashboard'),
 ]

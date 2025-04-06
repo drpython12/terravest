@@ -11,7 +11,7 @@ from django.core.validators import validate_email
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.csrf import csrf_exempt
-from django.db.models import Avg, Max, Min
+from django.db.models import Avg, Max, Min, Sum, F, Case, When, FloatField
 from django.core.paginator import Paginator
 
 from yahoo_fin import stock_info  # Ensure yahoo_fin is installed
@@ -19,6 +19,9 @@ from yahoo_fin import stock_info  # Ensure yahoo_fin is installed
 from .models import PortfolioStock, User, UserPreferences, ESGCompany, ESGMetric
 
 from django.core.cache import cache
+
+import logging
+logger = logging.getLogger(__name__)
 
 ALPHA_VANTAGE_API_KEY = 'PNPAH7B7UT76I8OI'
 
@@ -375,49 +378,188 @@ def search_company(request):
 @login_required
 def get_esg_data(request):
     """Fetch ESG data for companies in the user's portfolio."""
-    if request.method == "GET":
-        user = request.user
+    if request.method != "GET":
+        return json_response({"error": "Invalid request method"}, status=400)
 
-        # Get the companies in the user's portfolio
-        portfolio_stocks = PortfolioStock.objects.filter(user=user)
-        company_symbols = portfolio_stocks.values_list("symbol", flat=True)
+    user = request.user
+    company_symbols = get_portfolio_company_symbols(user)
+    esg_data = fetch_esg_data_for_companies(company_symbols)
+    return json_response(esg_data)
 
-        # Fetch ESG data for these companies
-        companies = ESGCompany.objects.filter(ticker__in=company_symbols)
 
-        esg_data = []
-        for company in companies:
-            # Get the latest year for the company's metrics
-            latest_year = ESGMetric.objects.filter(company=company).aggregate(latest_year=Max("year"))["latest_year"]
+def get_portfolio_company_symbols(user):
+    """Retrieve company symbols from the user's portfolio."""
+    portfolio_stocks = PortfolioStock.objects.filter(user=user)
+    return portfolio_stocks.values_list("symbol", flat=True)
 
-            # Fetch metrics for the latest year only
-            metrics = ESGMetric.objects.filter(company=company, year=latest_year)
 
-            # Fetch specific pillar scores directly from the database
-            environmental_score = metrics.filter(fieldname="EnvironmentPillarScore").first()
-            social_score = metrics.filter(fieldname="SocialPillarScore").first()
-            governance_score = metrics.filter(fieldname="GovernancePillarScore").first()
+def fetch_esg_data_for_companies(company_symbols):
+    """Fetch ESG data for a list of company symbols."""
+    companies = ESGCompany.objects.filter(ticker__in=company_symbols)
+    esg_data = [get_company_esg_data(company) for company in companies]
+    return esg_data
 
-            # Normalize scores to 0-100 and round to integers
-            esg_data.append({
-                "id": company.id,
-                "company_name": company.name,
-                "symbol": company.ticker,
-                "environmental": round(environmental_score.valuescore * 100) if environmental_score else 0,
-                "social": round(social_score.valuescore * 100) if social_score else 0,
-                "governance": round(governance_score.valuescore * 100) if governance_score else 0,
-                "emissions": round(metrics.filter(fieldname="ESGEmissionsScore").first().valuescore * 100) if metrics.filter(fieldname="ESGEmissionsScore").exists() else 0,
-                "resource_use": round(metrics.filter(fieldname="ESGResourceUseScore").first().valuescore * 100) if metrics.filter(fieldname="ESGResourceUseScore").exists() else 0,
-                "innovation": round(metrics.filter(fieldname="ESGInnovationScore").first().valuescore * 100) if metrics.filter(fieldname="ESGInnovationScore").exists() else 0,
-                "human_rights": round(metrics.filter(fieldname="ESGHumanRightsScore").first().valuescore * 100) if metrics.filter(fieldname="ESGHumanRightsScore").exists() else 0,
-                "product_responsibility": round(metrics.filter(fieldname="ESGProductResponsibilityScore").first().valuescore * 100) if metrics.filter(fieldname="ESGProductResponsibilityScore").exists() else 0,
-                "workforce": round(metrics.filter(fieldname="ESGWorkforceScore").first().valuescore * 100) if metrics.filter(fieldname="ESGWorkforceScore").exists() else 0,
-                "community": round(metrics.filter(fieldname="ESGCommunityScore").first().valuescore * 100) if metrics.filter(fieldname="ESGCommunityScore").exists() else 0,
-                "management": round(metrics.filter(fieldname="ESGManagementScore").first().valuescore * 100) if metrics.filter(fieldname="ESGManagementScore").exists() else 0,
-                "shareholders": round(metrics.filter(fieldname="ESGShareholdersScore").first().valuescore * 100) if metrics.filter(fieldname="ESGShareholdersScore").exists() else 0,
-                "csr_strategy": round(metrics.filter(fieldname="ESGCsrStrategyScore").first().valuescore * 100) if metrics.filter(fieldname="ESGCsrStrategyScore").exists() else 0,
-            })
 
-        return json_response(esg_data)
+def get_company_esg_data(company):
+    """Fetch ESG data for a single company."""
+    latest_year = get_latest_year_for_company(company)
+    metrics = ESGMetric.objects.filter(company=company, year=latest_year)
+    return {
+        "id": company.id,
+        "company_name": company.name,
+        "symbol": company.ticker,
+        "environmental": get_metric_score(metrics, "EnvironmentPillarScore"),
+        "social": get_metric_score(metrics, "SocialPillarScore"),
+        "governance": get_metric_score(metrics, "GovernancePillarScore"),
+        "emissions": get_metric_score(metrics, "ESGEmissionsScore"),
+        "resource_use": get_metric_score(metrics, "ESGResourceUseScore"),
+        "innovation": get_metric_score(metrics, "ESGInnovationScore"),
+        "human_rights": get_metric_score(metrics, "ESGHumanRightsScore"),
+        "product_responsibility": get_metric_score(metrics, "ESGProductResponsibilityScore"),
+        "workforce": get_metric_score(metrics, "ESGWorkforceScore"),
+        "community": get_metric_score(metrics, "ESGCommunityScore"),
+        "management": get_metric_score(metrics, "ESGManagementScore"),
+        "shareholders": get_metric_score(metrics, "ESGShareholdersScore"),
+        "csr_strategy": get_metric_score(metrics, "ESGCsrStrategyScore"),
+    }
 
-    return json_response({"error": "Invalid request method"}, status=400)
+
+def get_latest_year_for_company(company):
+    """Get the latest year for which ESG metrics are available for a company."""
+    return ESGMetric.objects.filter(company=company).aggregate(latest_year=Max("year"))["latest_year"]
+
+
+def get_metric_score(metrics, fieldname):
+    """Fetch and normalize a specific ESG metric score."""
+    metric = metrics.filter(fieldname=fieldname).first()
+    return round(metric.valuescore * 100) if metric else 0
+
+
+from decimal import Decimal
+
+def get_dashboard_data(request):
+    """Fetch dashboard data for the logged-in user."""
+    user = request.user
+    logger.info(f"Fetching dashboard data for user: {user.email}")
+
+    portfolio_stocks = PortfolioStock.objects.filter(user=user)
+    logger.info(f"Portfolio stocks: {portfolio_stocks}")
+
+    stock_values, total_portfolio_value = calculate_portfolio_value(portfolio_stocks)
+    weighted_esg_score = calculate_weighted_esg_score(portfolio_stocks, stock_values, total_portfolio_value)
+    portfolio_performance = calculate_portfolio_performance(portfolio_stocks, total_portfolio_value)
+    esg_breakdown = calculate_esg_breakdown(portfolio_stocks)
+    top_holdings = get_top_holdings(portfolio_stocks)
+
+    return json_response({
+        "portfolio_value": float(total_portfolio_value),
+        "overall_esg_score": round(weighted_esg_score * 100, 0) if total_portfolio_value > 0 else None,
+        "portfolio_performance_change": round(portfolio_performance, 2),
+        "esg_breakdown": esg_breakdown,
+        "esg_trends": [],  # Placeholder for ESG trends
+        "top_holdings": list(top_holdings),
+    })
+
+
+def calculate_portfolio_value(portfolio_stocks):
+    """Calculate the total portfolio value and stock values."""
+    total_portfolio_value = Decimal(0)
+    stock_values = {}
+    for stock in portfolio_stocks:
+        try:
+            live_price = fetch_live_stock_price(stock.symbol)
+            stock_value = Decimal(live_price) * Decimal(stock.shares)
+            stock_values[stock.symbol] = stock_value
+            total_portfolio_value += stock_value
+        except Exception as e:
+            logger.error(f"Error fetching live price for {stock.symbol}: {e}")
+    return stock_values, total_portfolio_value
+
+
+def fetch_live_stock_price(symbol):
+    """Fetch live stock price for a given symbol."""
+    connection = http.client.HTTPSConnection("yahoo-finance-real-time1.p.rapidapi.com")
+    headers = {
+        'x-rapidapi-key': "c4cf9f510cmsh80ee50ea6a7d2b3p171c27jsnab5350889c90",
+        'x-rapidapi-host': "yahoo-finance-real-time1.p.rapidapi.com"
+    }
+    connection.request("GET", f"/stock/get-quote-summary?symbol={symbol}&lang=en-US&region=US", headers=headers)
+    response = connection.getresponse()
+    data = response.read().decode("utf-8")
+    json_data = json.loads(data)
+    return json_data["quoteSummary"]["result"][0]["price"]["regularMarketPrice"]
+
+
+def calculate_weighted_esg_score(portfolio_stocks, stock_values, total_portfolio_value):
+    """Calculate the weighted ESG score for the portfolio."""
+    if total_portfolio_value == 0:
+        return None  # Avoid division by zero and return None if the portfolio value is zero
+
+    weighted_esg_score = Decimal(0)
+    for stock in portfolio_stocks:
+        try:
+            # Fetch the latest ESG score for the stock
+            esg_score = fetch_latest_esg_score(stock.symbol)
+            if esg_score is not None:
+                # Calculate the weight of the stock in the portfolio
+                stock_value = stock_values.get(stock.symbol, 0)
+                weight = Decimal(stock_value) / Decimal(total_portfolio_value)
+                # Add the weighted ESG score to the total
+                weighted_esg_score += Decimal(esg_score) * weight
+        except Exception as e:
+            logger.error(f"Error calculating ESG score for {stock.symbol}: {e}")
+    return weighted_esg_score
+
+
+def fetch_latest_esg_score(symbol):
+    """Fetch the latest ESG score for a given stock symbol."""
+    latest_year = ESGMetric.objects.filter(
+        company__ticker=symbol,
+        fieldname="ESGScore"
+    ).aggregate(latest_year=Max('year'))['latest_year']
+
+    if latest_year:
+        metric = ESGMetric.objects.filter(
+            company__ticker=symbol,
+            fieldname="ESGScore",
+            year=latest_year
+        ).first()
+        return metric.valuescore if metric else None
+    return None
+
+
+def calculate_portfolio_performance(portfolio_stocks, total_portfolio_value):
+    """Calculate the portfolio performance."""
+    total_invested = portfolio_stocks.aggregate(total_invested=Sum('amount_invested'))['total_invested'] or Decimal(0)
+    if total_invested > 0:
+        return ((total_portfolio_value - total_invested) / total_invested) * 100
+    return 0
+
+
+def calculate_esg_breakdown(portfolio_stocks):
+    """Calculate the ESG breakdown for the portfolio."""
+    return {
+        "environmental": ESGMetric.objects.filter(
+            company__ticker__in=portfolio_stocks.values_list('symbol', flat=True),
+            pillar="Environmental"
+        ).aggregate(avg_score=Avg('valuescore'))['avg_score'] or 0,
+        "social": ESGMetric.objects.filter(
+            company__ticker__in=portfolio_stocks.values_list('symbol', flat=True),
+            pillar="Social"
+        ).aggregate(avg_score=Avg('valuescore'))['avg_score'] or 0,
+        "governance": ESGMetric.objects.filter(
+            company__ticker__in=portfolio_stocks.values_list('symbol', flat=True),
+            pillar="Governance"
+        ).aggregate(avg_score=Avg('valuescore'))['avg_score'] or 0,
+    }
+
+
+def get_top_holdings(portfolio_stocks):
+    """Get the top holdings in the portfolio."""
+    return portfolio_stocks.annotate(
+        esg_score=Case(
+            When(symbol__in=ESGMetric.objects.values_list('company__ticker', flat=True), then=F('amount_invested')),
+            default=0,
+            output_field=FloatField()
+        )
+    ).values('company_name', 'symbol', 'shares', 'amount_invested')

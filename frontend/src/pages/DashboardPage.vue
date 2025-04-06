@@ -10,17 +10,22 @@
     <div class="portfolio-summary">
       <div class="summary-card">
         <h3>Total Portfolio Value</h3>
-        <p>${{ portfolioValue.toLocaleString() }}</p>
+        <p v-if="!loading">${{ portfolioValue ? portfolioValue.toLocaleString() : '0' }}</p>
+        <p v-else>Loading...</p>
       </div>
       <div class="summary-card">
         <h3>Overall ESG Score</h3>
-        <p>{{ esgScore }}/100</p>
+        <p v-if="!loading">
+          {{ !isNaN(esgScore) ? esgScore : 'No Data Available' }}{{ !isNaN(esgScore) ? '/100' : '' }}
+        </p>
+        <p v-else>Loading...</p>
       </div>
       <div class="summary-card">
         <h3>Portfolio Performance</h3>
-        <p :class="{ positive: performanceChange >= 0, negative: performanceChange < 0 }">
+        <p v-if="!loading" :class="{ positive: performanceChange >= 0, negative: performanceChange < 0 }">
           {{ performanceChange }}%
         </p>
+        <p v-else>Loading...</p>
       </div>
     </div>
 
@@ -68,20 +73,30 @@ import axios from "axios";
 
 const authStore = useAuthStore();
 const portfolioValue = ref(0);
-const esgScore = ref(0);
+const esgScore = ref(null); // Set to null initially
 const performanceChange = ref(0);
 const esgBreakdown = ref({});
 const esgTrends = ref([]);
 const topHoldings = ref([]);
+const loading = ref(true);
+const portfolio = ref([]); // Define the portfolio property
 
 const loadDashboardData = async () => {
-  const response = await axios.get("/dashboard");
-  portfolioValue.value = response.data.portfolio_value;
-  esgScore.value = response.data.overall_esg_score;
-  performanceChange.value = response.data.portfolio_performance_change;
-  esgBreakdown.value = response.data.esg_breakdown;
-  esgTrends.value = response.data.esg_trends;
-  topHoldings.value = response.data.top_holdings;
+  try {
+    const response = await axios.get("/api/dashboard/");
+    console.log("API Response:", response.data); // Log the API response for debugging
+    portfolioValue.value = response.data.portfolio_value;
+    esgScore.value = response.data.overall_esg_score; // Ensure this value is being set
+    performanceChange.value = response.data.portfolio_performance_change;
+    esgBreakdown.value = response.data.esg_breakdown;
+    esgTrends.value = response.data.esg_trends;
+    topHoldings.value = response.data.top_holdings;
+    portfolio.value = response.data.top_holdings; // Populate the portfolio property
+  } catch (error) {
+    console.error("Error loading dashboard data:", error);
+  } finally {
+    loading.value = false;
+  }
 };
 
 onMounted(loadDashboardData);
