@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-container">
+  <div class="dashboard-container" v-if="authStore.user">
     <!-- Header Section -->
     <header class="dashboard-header">
       <h1>Welcome, {{ authStore.user.first_name }} 👋</h1>
@@ -32,7 +32,7 @@
     <!-- ESG Charts & Market Sentiment -->
     <div class="dashboard-grid">
       <div class="chart-card">
-        <h2>ESG Breakdown</h2>
+        <h2>ESG Category Breakdown</h2>
         <ESGPieChart :data="esgBreakdown" />
       </div>
       <div class="chart-card">
@@ -60,6 +60,9 @@
       <InvestmentSuggestions :portfolio="portfolio" />
     </div>
   </div>
+  <div v-else>
+    <p>Loading user data...</p>
+  </div>
 </template>
 
 <script setup>
@@ -76,7 +79,12 @@ const portfolioValue = ref(0);
 const esgScore = ref(null); // Set to null initially
 const performanceChange = ref(0);
 const esgBreakdown = ref({});
-const esgTrends = ref([]);
+const esgTrends = ref({
+  ESGScore: [],
+  EnvironmentalScore: [],
+  SocialScore: [],
+  GovernanceScore: [],
+});
 const topHoldings = ref([]);
 const loading = ref(true);
 const portfolio = ref([]); // Define the portfolio property

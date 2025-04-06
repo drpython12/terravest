@@ -382,9 +382,46 @@ def get_esg_data(request):
         return json_response({"error": "Invalid request method"}, status=400)
 
     user = request.user
-    company_symbols = get_portfolio_company_symbols(user)
-    esg_data = fetch_esg_data_for_companies(company_symbols)
-    return json_response(esg_data)
+    portfolio_stocks = PortfolioStock.objects.filter(user=user)
+    total_portfolio_value = portfolio_stocks.aggregate(total_value=Sum(F('shares') * F('price_bought_at')))['total_value'] or 0
+
+    esg_data = []
+    for stock in portfolio_stocks:
+        company = ESGCompany.objects.filter(ticker=stock.symbol).first()
+        if not company:
+            continue
+
+        metrics = ESGMetric.objects.filter(company=company, year=get_latest_year_for_company(company))
+        esg_scores = {
+            "environmental": get_metric_score(metrics, "EnvironmentPillarScore"),
+            "social": get_metric_score(metrics, "SocialPillarScore"),
+            "governance": get_metric_score(metrics, "GovernancePillarScore"),
+            "subcategories": {
+                "emissions": get_metric_score(metrics, "ESGEmissionsScore"),
+                "resource_use": get_metric_score(metrics, "ESGResourceUseScore"),
+                "innovation": get_metric_score(metrics, "ESGInnovationScore"),
+                "human_rights": get_metric_score(metrics, "ESGHumanRightsScore"),
+                "product_responsibility": get_metric_score(metrics, "ESGProductResponsibilityScore"),
+                "workforce": get_metric_score(metrics, "ESGWorkforceScore"),
+                "community": get_metric_score(metrics, "ESGCommunityScore"),
+                "management": get_metric_score(metrics, "ESGManagementScore"),
+                "shareholders": get_metric_score(metrics, "ESGShareholdersScore"),
+                "csr_strategy": get_metric_score(metrics, "ESGCsrStrategyScore"),
+            }
+        }
+
+        # Calculate the weight of the stock in the portfolio
+        stock_value = stock.shares * stock.price_bought_at
+        weight = stock_value / total_portfolio_value if total_portfolio_value > 0 else 0
+
+        esg_data.append({
+            "symbol": stock.symbol,
+            "company_name": stock.company_name,
+            "weight": weight,
+            "esg_scores": esg_scores,
+        })
+
+    return json_response({"esg_data": esg_data})
 
 
 def get_portfolio_company_symbols(user):
@@ -439,6 +476,48 @@ def get_metric_score(metrics, fieldname):
 
 from decimal import Decimal
 
+def get_weighted_esg_trends(portfolio_stocks, stock_values, total_portfolio_value):
+    """Calculate weighted ESG trends for the portfolio."""
+    if total_portfolio_value == 0:
+        return {"ESGScore": [], "EnvironmentPillarScore": [], "SocialPillarScore": [], "GovernancePillarScore": []}
+
+    esg_trends = {
+        "ESGScore": {},
+        "EnvironmentPillarScore": {},
+        "SocialPillarScore": {},
+        "GovernancePillarScore": {},
+    }
+
+    for stock in portfolio_stocks:
+        try:
+            company = ESGCompany.objects.filter(ticker=stock.symbol).first()
+            if not company:
+                continue
+
+            metrics = ESGMetric.objects.filter(company=company)
+            stock_value = stock_values.get(stock.symbol, 0)
+            weight = Decimal(stock_value) / Decimal(total_portfolio_value)
+
+            for metric in metrics:
+                year = metric.year
+                for category in esg_trends.keys():
+                    if metric.fieldname == category:
+                        if year not in esg_trends[category]:
+                            esg_trends[category][year] = 0
+                        esg_trends[category][year] += metric.valuescore * float(weight) * 100
+        except Exception as e:
+            logger.error(f"Error calculating ESG trends for {stock.symbol}: {e}")
+
+    # Convert trends to sorted lists
+    for category in esg_trends.keys():
+        esg_trends[category] = sorted(
+            [{"year": year, "score": round(score, 2)} for year, score in esg_trends[category].items()],
+            key=lambda x: x["year"]
+        )
+
+    return esg_trends
+
+
 def get_dashboard_data(request):
     """Fetch dashboard data for the logged-in user."""
     user = request.user
@@ -452,13 +531,14 @@ def get_dashboard_data(request):
     portfolio_performance = calculate_portfolio_performance(portfolio_stocks, total_portfolio_value)
     esg_breakdown = calculate_esg_breakdown(portfolio_stocks)
     top_holdings = get_top_holdings(portfolio_stocks)
+    esg_trends = get_weighted_esg_trends(portfolio_stocks, stock_values, total_portfolio_value)
 
     return json_response({
         "portfolio_value": float(total_portfolio_value),
         "overall_esg_score": round(weighted_esg_score * 100, 0) if total_portfolio_value > 0 else None,
         "portfolio_performance_change": round(portfolio_performance, 2),
         "esg_breakdown": esg_breakdown,
-        "esg_trends": [],  # Placeholder for ESG trends
+        "esg_trends": esg_trends,  # Include ESG trends
         "top_holdings": list(top_holdings),
     })
 
