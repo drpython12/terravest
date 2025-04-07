@@ -44,11 +44,7 @@
     <!-- Top Holdings Section -->
     <div class="top-holdings">
       <h2>Top Portfolio Holdings</h2>
-      <ul>
-        <li v-for="holding in topHoldings" :key="holding.id">
-          <strong>{{ holding.name }}</strong> - ESG Score: {{ holding.esg_score }} | Change: {{ holding.change }}%
-        </li>
-      </ul>
+      <TopPortfolioHoldings />
     </div>
 
     <!-- ESG Market News -->
@@ -72,6 +68,7 @@ import ESGPieChart from "@/components/ESGPieChart.vue";
 import ESGLineChart from "@/components/ESGLineChart.vue";
 import ESGNewsFeed from "@/components/ESGNewsFeed.vue";
 import InvestmentSuggestions from "@/components/InvestmentSuggestions.vue";
+import TopPortfolioHoldings from "@/components/TopPortfolioHoldings.vue";
 import axios from "axios";
 
 const authStore = useAuthStore();
