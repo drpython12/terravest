@@ -1,65 +1,71 @@
-# Template for ECS639U Group Coursework
+# TerraVest Website
 
-This template should be used as the starting point for your group coursework in the module ECS639U Web Programming (at Queen Mary University of London). Use Git (github.qmul.ac.uk) to collaborate on the coursework with your group members. Module leader: Paulo Oliva <[p.oliva@qmul.ac.uk](mailto:p.oliva@qmul.ac.uk)>
+TerraVest is a web application designed to empower users with sustainable investment tools. It provides AI-driven ESG (Environmental, Social, and Governance) analysis, real-time insights, and personalized investment recommendations.
 
-## Local development
+## Features
 
-To run this project in your development machine, follow these steps:
+- **Real-Time Insights**: Live sentiment analysis and dynamic ESG scores.
+- **Transparent Reporting**: Clear and narrative explanations for informed decisions.
+- **Custom Recommendations**: Tailored strategies to match unique investment goals.
+- **Portfolio Management**: Manage your investments with detailed performance metrics.
+- **ESG News Feed**: Stay updated with the latest ESG-related news.
+- **User Preferences**: Customize your investment strategy and exclusions.
 
-1. Create and activate a conda environment
+## Tech Stack
 
-2. Download this repo as a zip and add the files to your own private repo.
+- **Frontend**: Vue 3, TypeScript, Vite
+- **Backend**: Django
+- **API**: Axios for HTTP requests
+- **Styling**: Tailwind CSS, Scoped CSS
+- **Database**: Django ORM
+- **Authentication**: Django's built-in authentication system
 
-3. Install Pyhton dependencies (main folder):
+## Project Structure
 
-    ```console
-    $ pip install -r requirements.txt
-    ```
+### Frontend
 
-4. Create a development database:
+The frontend is located in the `frontend` directory and is built using Vue 3 with TypeScript and Vite.
 
-    ```console
-    $ python manage.py migrate
-    ```
+#### Key Directories
 
-5. Install JavaScript dependencies (from 'frontend' folder):
+- **`src/pages`**: Contains Vue components for individual pages like `MainPage.vue`, `PortfolioPage.vue`, etc.
+- **`src/components`**: Reusable components like `Header.vue`, `Footer.vue`, `HoldingsTable.vue`, etc.
+- **`src/assets`**: Static assets like images and icons.
+- **`src/styles`**: Global and scoped styles.
 
-    ```console
-    $ npm install
-    ```
+#### Scripts
 
-6. If everything is alright, you should be able to start the Django development server from the main folder:
+- `npm run dev`: Start the development server.
+- `npm run build`: Build the project for production.
+- `npm run preview`: Preview the production build.
 
-    ```console
-    $ python manage.py runserver
-    ```
+### Backend
 
-7. and the Vue server from the 'frontend' sub-folder:
+The backend is located in the `api` directory and is built using Django.
 
-    ```console
-    $ npm run dev
-    ```
+#### Key Files
 
-8. Open your browser and go to http://localhost:5173, you will be greeted with a template page.
+- **`views.py`**: Contains API endpoints for user preferences, portfolio management, and more.
+- **`models.py`**: Defines the database schema.
+- **`urls.py`**: Maps URLs to views.
+- **`templates`**: Contains HTML templates for the app.
 
-## OpenShift deployment
+#### Commands
 
-Once your project is ready to be deployed you will need to 'build' the Vue app and place it in Django's static folder.
+- `python manage.py runserver`: Start the Django development server.
+- `python manage.py migrate`: Apply database migrations.
+- `python manage.py createsuperuser`: Create an admin user.
 
-1. The build command in package.json and the vite.config.ts files have already been modified so that when running 'npm run build' (on Mac and Linux) the generated JavaScript and CSS files will be placed in the mainapp static folder, and the index.html file will be placed in the templates folder:
+## Setup Instructions
 
-    ```console
-    $ npm run build
-    ```
+### Prerequisites
 
-    If using Windows run
+- Node.js and npm
+- Python 3.x and pip
+- A virtual environment for Python (recommended)
 
-    ```console
-    $ npm run build-windows
-    ```
+### Frontend Setup
 
-2. You should then follow the instruction on QM+ on how to deploy your app on EECS's OpenShift live server.
-
-## License
-
-This code is dedicated to the public domain to the maximum extent permitted by applicable law, pursuant to [CC0](http://creativecommons.org/publicdomain/zero/1.0/).
+1. Navigate to the `frontend` directory:
+   ```bash
+   cd frontend
