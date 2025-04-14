@@ -7,6 +7,8 @@ import PreferencesPage from '@/pages/PreferencesPage.vue';
 import DashboardPage from '@/pages/DashboardPage.vue';
 import AccountSettingsPage from '@/pages/AccountSettingsPage.vue';
 import PortfolioPage from '@/pages/PortfolioPage.vue';
+import CompanyPage from '@/pages/CompanyPage.vue';
+import CompanySearchPage from '@/pages/CompanySearchPage.vue';
 
 const routes = [
   {
@@ -48,6 +50,16 @@ const routes = [
     path: '/account/portfolio',
     name: 'PortfolioPage',
     component: PortfolioPage,
+  },
+  {
+    path: '/company/:symbol',
+    name: 'CompanyPage',
+    component: CompanyPage,
+  },
+  {
+    path: '/search-company',
+    name: 'CompanyPage',
+    component: CompanySearchPage,
   }
 ];
 

@@ -393,6 +393,7 @@ def get_esg_data(request):
 
         metrics = ESGMetric.objects.filter(company=company, year=get_latest_year_for_company(company))
         esg_scores = {
+            "overall": get_metric_score(metrics, "ESGScore"),
             "environmental": get_metric_score(metrics, "EnvironmentPillarScore"),
             "social": get_metric_score(metrics, "SocialPillarScore"),
             "governance": get_metric_score(metrics, "GovernancePillarScore"),
@@ -420,6 +421,10 @@ def get_esg_data(request):
             "weight": weight,
             "esg_scores": esg_scores,
         })
+
+    logger.info(f"User: {user.email}")
+    logger.info(f"Portfolio Stocks: {portfolio_stocks}")
+    logger.info(f"ESG Data: {esg_data}")
 
     return json_response({"esg_data": esg_data})
 

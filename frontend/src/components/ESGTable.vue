@@ -8,41 +8,44 @@
         <div class="esg-section overall-esg-section">
           <h3 class="section-title">
             <span class="overall-icon">🌍</span> Overall ESG Score
-            <span class="score">{{ company.overall_esg_score }}</span>
+            <span class="score">{{ company.esg_scores.overall }}</span>
           </h3>
+          <ul class="score-list">
+            <li>Weight in Portfolio: {{ company.weight }}</li>
+          </ul>
         </div>
         <div class="esg-section">
           <h3 class="section-title">
             <span class="environment-icon">🌲</span> Environment
-            <span class="score">{{ company.environmental }}</span>
+            <span class="score">{{ company.esg_scores.environmental }}</span>
           </h3>
           <ul class="score-list">
-            <li>Emissions: {{ company.emissions }}</li>
-            <li>Resource Use: {{ company.resource_use }}</li>
-            <li>Innovation: {{ company.innovation }}</li>
+            <li>Emissions: {{ company.esg_scores.subcategories.emissions }}</li>
+            <li>Resource Use: {{ company.esg_scores.subcategories.resource_use }}</li>
+            <li>Innovation: {{ company.esg_scores.subcategories.innovation }}</li>
           </ul>
         </div>
         <div class="esg-section">
           <h3 class="section-title">
             <span class="social-icon">🌇</span> Social
-            <span class="score">{{ company.social }}</span>
+            <span class="score">{{ company.esg_scores.social }}</span>
           </h3>
           <ul class="score-list">
-            <li>Human Rights: {{ company.human_rights }}</li>
-            <li>Product Responsibility: {{ company.product_responsibility }}</li>
-            <li>Workforce: {{ company.workforce }}</li>
-            <li>Community: {{ company.community }}</li>
+            <li>Human Rights: {{ company.esg_scores.subcategories.human_rights }}</li>
+            <li>Product Responsibility: {{ company.esg_scores.subcategories.product_responsibility }}</li>
+            <li>Workforce: {{ company.esg_scores.subcategories.workforce }}</li>
+            <li>Community: {{ company.esg_scores.subcategories.community }}</li>
           </ul>
         </div>
         <div class="esg-section">
           <h3 class="section-title">
             <span class="governance-icon">👨‍⚖️</span> Governance
-            <span class="score">{{ company.governance }}</span>
+            <span class="score">{{ company.esg_scores.governance }}</span>
           </h3>
           <ul class="score-list">
-            <li>Management: {{ company.management }}</li>
-            <li>Shareholders: {{ company.shareholders }}</li>
-            <li>CSR Strategy: {{ company.csr_strategy }}</li>
+            <li>Management: {{ company.esg_scores.subcategories.management }}</li>
+            <li>Shareholders: {{ company.esg_scores.subcategories.shareholders }}</li>
+            <li>CSR Strategy: {{ company.esg_scores.subcategories.csr_strategy }}</li>
           </ul>
         </div>
       </div>
@@ -60,7 +63,7 @@ const esgData = ref([]);
 const loadESGData = async () => {
   try {
     const response = await axiosInstance.get("/get-esg-data/");
-    esgData.value = Array.isArray(response.data) ? response.data : [];
+    esgData.value = Array.isArray(response.data.esg_data) ? response.data.esg_data : [];
   } catch (error) {
     console.error("Failed to fetch ESG data:", error);
   }
