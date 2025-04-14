@@ -58,7 +58,7 @@ const routes = [
   },
   {
     path: '/search-company',
-    name: 'CompanyPage',
+    name: 'CompanySearchPage',
     component: CompanySearchPage,
   }
 ];

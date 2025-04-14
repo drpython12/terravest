@@ -650,3 +650,113 @@ def get_top_holdings(portfolio_stocks):
             output_field=FloatField()
         )
     ).values('company_name', 'symbol', 'shares', 'amount_invested')
+
+
+import openai
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+import json
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
+
+# Set your OpenAI API key
+openai.api_key = "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"
+
+@csrf_exempt
+@login_required
+def chatgpt_advisor(request):
+    """
+    View to handle ChatGPT interactions for portfolio suitability.
+    """
+    if request.method == "POST":
+        try:
+            # Parse the request body
+            body = json.loads(request.body)
+            question = body.get("question", "")
+            company = body.get("company", {})
+            preferences = body.get("preferences", {})
+
+            if not question or not company or not preferences:
+                return JsonResponse({"error": "Invalid input data."}, status=400)
+
+            # Construct the prompt for ChatGPT
+            prompt = f"""
+            You are a financial advisor specializing in ESG (Environmental, Social, and Governance) investing. 
+            A user has asked the following question: "{question}"
+
+            The company in question is:
+            - Name: {company.get('name')}
+            - Symbol: {company.get('symbol')}
+            - Description: {company.get('description')}
+
+            The company's ESG breakdown is as follows:
+            - Environmental Score: {company.get('environmental_score', 'N/A')}
+            - Social Score: {company.get('social_score', 'N/A')}
+            - Governance Score: {company.get('governance_score', 'N/A')}
+
+            The user's portfolio preferences are:
+            {json.dumps(preferences, indent=2)}
+
+            Provide a detailed, quantifiable response on how well this company aligns with the user's preferences. 
+            Be concise and professional.
+            """
+
+            # Call OpenAI's GPT model
+            response = openai.Completion.create(
+                engine="text-davinci-003",
+                prompt=prompt,
+                max_tokens=500,
+                temperature=0.7,
+            )
+
+            # Extract the response text
+            answer = response.choices[0].text.strip()
+
+            # Return the response
+            return JsonResponse({"answer": answer}, status=200)
+
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON format."}, status=400)
+        except Exception as e:
+            return JsonResponse({"error": f"An error occurred: {str(e)}"}, status=500)
+
+    return JsonResponse({"error": "Invalid request method."}, status=405)
+
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+
+@csrf_exempt
+def get_company_esg_data(request, ticker):
+    """Fetch ESG data for a single company based on its ticker."""
+    try:
+        # Fetch the company using the ticker
+        company = get_object_or_404(ESGCompany, ticker=ticker)
+        
+        # Fetch ESG data for the company
+        latest_year = get_latest_year_for_company(company)
+        metrics = ESGMetric.objects.filter(company=company, year=latest_year)
+        overall_esg_score = get_metric_score(metrics, "ESGScore")  # Fetch overall ESG score
+        
+        # Prepare the response data
+        data = {
+            "id": company.id,
+            "company_name": company.name,
+            "symbol": company.ticker,
+            "overall_esg_score": overall_esg_score,
+            "environmental": get_metric_score(metrics, "EnvironmentPillarScore"),
+            "social": get_metric_score(metrics, "SocialPillarScore"),
+            "governance": get_metric_score(metrics, "GovernancePillarScore"),
+            "emissions": get_metric_score(metrics, "ESGEmissionsScore"),
+            "resource_use": get_metric_score(metrics, "ESGResourceUseScore"),
+            "innovation": get_metric_score(metrics, "ESGInnovationScore"),
+            "human_rights": get_metric_score(metrics, "ESGHumanRightsScore"),
+            "product_responsibility": get_metric_score(metrics, "ESGProductResponsibilityScore"),
+            "workforce": get_metric_score(metrics, "ESGWorkforceScore"),
+            "community": get_metric_score(metrics, "ESGCommunityScore"),
+            "management": get_metric_score(metrics, "ESGManagementScore"),
+            "shareholders": get_metric_score(metrics, "ESGShareholdersScore"),
+            "csr_strategy": get_metric_score(metrics, "ESGCsrStrategyScore"),
+        }
+        return JsonResponse(data, status=200)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

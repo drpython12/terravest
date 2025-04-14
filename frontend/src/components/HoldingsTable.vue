@@ -114,6 +114,7 @@ const editStock = (stock) => {
 };
 
 onMounted(loadPortfolio);
+
 </script>
 
 <style scoped>

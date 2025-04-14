@@ -9,8 +9,8 @@
         <div class="dropdown">
           <button class="dropbtn">Investments</button>
           <div class="dropdown-content">
+            <router-link to="/account/portfolio">Portfolio</router-link>
             <router-link to="/account/preferences">Preferences</router-link>
-            <router-link to="/account/portfolio">Portfolio Manager</router-link>
             <router-link to="/company">Company Insights</router-link>
             <router-link to="/reports">Reports</router-link>
             </div>
