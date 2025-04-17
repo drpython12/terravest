@@ -737,6 +737,10 @@ def get_company_esg_data(request, ticker):
         metrics = ESGMetric.objects.filter(company=company, year=latest_year)
         overall_esg_score = get_metric_score(metrics, "ESGScore")  # Fetch overall ESG score
         
+        # Fetch historical ESG scores
+        historical_metrics = ESGMetric.objects.filter(company=company, fieldname="ESGScore").order_by("year")
+        historical_scores = [{"year": metric.year, "score": metric.valuescore * 100} for metric in historical_metrics]
+
         # Prepare the response data
         data = {
             "id": company.id,
@@ -756,7 +760,55 @@ def get_company_esg_data(request, ticker):
             "management": get_metric_score(metrics, "ESGManagementScore"),
             "shareholders": get_metric_score(metrics, "ESGShareholdersScore"),
             "csr_strategy": get_metric_score(metrics, "ESGCsrStrategyScore"),
+            "historical_scores": historical_scores,  # Add historical ESG scores
         }
+        
+        # Fetch controversy data
+        controversies = ESGMetric.objects.filter(company=company, fieldname="ControversyScore").order_by("-year")
+        controversy_data = [{"year": metric.year, "score": metric.valuescore * 100} for metric in controversies]
+
+        # Fetch benchmark data
+        industry_benchmark = ESGMetric.objects.filter(
+            company__industry=company.industry, fieldname="ESGScore"
+        ).aggregate(avg_score=Avg("valuescore"))["avg_score"]
+
+        data["controversy_data"] = controversy_data
+        data["industry_benchmark"] = round(industry_benchmark * 100, 2) if industry_benchmark else None
+        
+        # Generate AI summary
+        ai_summary_prompt = f"""
+        Provide a concise summary of the ESG performance for the company:
+        - Name: {company.name}
+        - Environmental Score: {data['environmental']}
+        - Social Score: {data['social']}
+        - Governance Score: {data['governance']}
+        """
+        # ai_summary = generate_ai_summary(ai_summary_prompt)  # Call a helper function to generate the summary
+        # data["ai_summary"] = ai_summary
+        
         return JsonResponse(data, status=200)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+def generate_ai_summary(prompt):
+    """Generate an AI summary using OpenAI."""
+    try:
+        response = openai.Completion.create(
+            engine="text-davinci-003",
+            prompt=prompt,
+            max_tokens=150,
+            temperature=0.7,
+        )
+        return response.choices[0].text.strip()
+    except Exception as e:
+        logger.error(f"Error generating AI summary: {e}")
+        return "Unable to generate summary at this time."
+
+
+def calculate_esg_contribution(company, portfolio_weight):
+    """Calculate ESG contribution to investment strategy."""
+    return {
+        "environmental": company.environmental * portfolio_weight,
+        "social": company.social * portfolio_weight,
+        "governance": company.governance * portfolio_weight,
+    }

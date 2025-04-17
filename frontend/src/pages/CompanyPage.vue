@@ -19,7 +19,7 @@
       <!-- Line Chart -->
       <section class="bg-white shadow-lg rounded-2xl p-6">
         <h2 class="text-lg font-semibold mb-4">ESG Score Over Time</h2>
-        <LineChart v-if="companyData.lineChart" :data="companyData.lineChart" />
+        <LineChart v-if="companyData.historical_scores" :data="companyData.historical_scores" />
         <div v-else class="h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
           Loading...
         </div>
@@ -28,8 +28,8 @@
       <!-- AI Summary -->
       <section class="bg-white shadow-lg rounded-2xl p-6">
         <h2 class="text-lg font-semibold mb-4">AI-Generated Summary</h2>
-        <p v-if="companyData.aiSummary" class="text-gray-700 leading-relaxed">
-          {{ companyData.aiSummary }}
+        <p v-if="companyData.ai_summary" class="text-gray-700 leading-relaxed">
+          {{ companyData.ai_summary }}
         </p>
         <div v-else class="h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
           Loading...
@@ -60,13 +60,29 @@
           </div>
         </div>
         <div v-else-if="activeTab === 'Controversies'">
-          <div class="h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-            [Controversy Data Placeholder]
+          <div v-if="companyData.controversy_data">
+            <ul class="space-y-2">
+              <li
+                v-for="entry in companyData.controversy_data"
+                :key="entry.year"
+                class="flex justify-between text-gray-700"
+              >
+                <span>{{ entry.year }}</span><span class="font-medium">{{ entry.score }}</span>
+              </li>
+            </ul>
+          </div>
+          <div v-else class="h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+            Loading...
           </div>
         </div>
         <div v-else-if="activeTab === 'Benchmark'">
-          <div class="h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-            [Benchmark Data Placeholder]
+          <div v-if="companyData.industry_benchmark">
+            <p class="text-gray-700">
+              Industry Benchmark ESG Score: <span class="font-medium">{{ companyData.industry_benchmark }}</span>
+            </p>
+          </div>
+          <div v-else class="h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+            Loading...
           </div>
         </div>
       </div>
@@ -75,8 +91,19 @@
     <!-- Bottom Row -->
     <div class="bg-white shadow-lg rounded-2xl p-6">
       <h2 class="text-lg font-semibold mb-4">ESG Contribution to Investment Strategy</h2>
-      <div class="h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-        [ESG Contribution Chart Placeholder]
+      <div v-if="companyData.esg_contribution">
+        <ul class="space-y-2">
+          <li
+            v-for="(value, key) in companyData.esg_contribution"
+            :key="key"
+            class="flex justify-between text-gray-700"
+          >
+            <span>{{ key }}</span><span class="font-medium">{{ value }}</span>
+          </li>
+        </ul>
+      </div>
+      <div v-else class="h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+        Loading...
       </div>
     </div>
   </div>
@@ -90,6 +117,9 @@ import axiosInstance from "@/axiosConfig";
 import RadarChart from "@/components/RadarChart.vue";
 import LineChart from "@/components/LineChart.vue";
 import KPIDrilldown from "@/components/KPIDrilldown.vue";
+import { Chart, registerables } from "chart.js";
+
+Chart.register(...registerables);
 
 const route = useRoute();
 const symbol = route.params.symbol;
@@ -110,6 +140,48 @@ const activeTab = ref(tabs[0]);
 
 onMounted(() => {
   fetchCompanyData();
+});
+
+const props = defineProps({
+  data: {
+    type: Array, // Updated to accept an array of historical scores
+    required: true,
+  },
+});
+
+const lineChart = ref(null);
+
+const renderChart = () => {
+  if (lineChart.value) {
+    new Chart(lineChart.value, {
+      type: "line",
+      data: {
+        labels: props.data.map((entry) => entry.year), // Extract years
+        datasets: [
+          {
+            label: "ESG Score",
+            data: props.data.map((entry) => entry.score), // Extract scores
+            backgroundColor: "rgba(54, 162, 235, 0.2)",
+            borderColor: "rgba(54, 162, 235, 1)",
+            borderWidth: 2,
+            fill: true,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true,
+          },
+        },
+      },
+    });
+  }
+};
+
+onMounted(() => {
+  renderChart();
 });
 </script>
 
