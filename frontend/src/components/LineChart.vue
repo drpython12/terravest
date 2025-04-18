@@ -1,6 +1,6 @@
 <template>
-  <div class="h-40 w-full bg-gray-100 rounded-lg flex items-center justify-center">
-    <canvas ref="lineChart"></canvas>
+  <div class="h-80 w-full bg-gray-100 rounded-lg flex items-center justify-center">
+    <canvas ref="lineChart" class="w-full h-full"></canvas>
   </div>
 </template>
 
@@ -29,17 +29,34 @@ const renderChart = () => {
           {
             label: "ESG Score",
             data: props.data.scores,
-            backgroundColor: "rgba(54, 162, 235, 0.2)",
-            borderColor: "rgba(54, 162, 235, 1)",
+            borderColor: "rgba(75, 192, 192, 1)",
+            backgroundColor: "rgba(75, 192, 192, 0.2)",
             borderWidth: 2,
-            fill: true,
+            tension: 0.4,
           },
         ],
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: "top",
+          },
+        },
         scales: {
+          x: {
+            title: {
+              display: true,
+              text: "Year",
+            },
+          },
           y: {
+            title: {
+              display: true,
+              text: "Score",
+            },
             beginAtZero: true,
           },
         },

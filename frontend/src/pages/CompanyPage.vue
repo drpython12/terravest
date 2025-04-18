@@ -2,16 +2,23 @@
   <div class="max-w-7xl mx-auto px-6 py-10 space-y-8 text-gray-900">
     <!-- Page Title -->
     <h1 class="text-4xl font-bold tracking-tight text-center">
-      {{ companyData.company_name || "Loading..." }}
+      {{ companyData["Company Name"] || "Loading..." }}
     </h1>
 
     <!-- Top Row -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
       <!-- Radar Chart -->
       <section class="bg-white shadow-lg rounded-2xl p-6">
         <h2 class="text-lg font-semibold mb-4">ESG Pillar Score Breakdown</h2>
-        <RadarChart v-if="companyData.radarChart" :data="companyData.radarChart" />
-        <div v-else class="h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+        <RadarChart
+          v-if="companyData.Environmental && companyData.Social && companyData.Governance"
+          :data="{
+            environmental: companyData.Environmental,
+            social: companyData.Social,
+            governance: companyData.Governance
+          }"
+        />
+        <div v-else class="h-80 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
           Loading...
         </div>
       </section>
@@ -19,8 +26,14 @@
       <!-- Line Chart -->
       <section class="bg-white shadow-lg rounded-2xl p-6">
         <h2 class="text-lg font-semibold mb-4">ESG Score Over Time</h2>
-        <LineChart v-if="companyData.historical_scores" :data="companyData.historical_scores" />
-        <div v-else class="h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+        <LineChart
+          v-if="companyData['Historical Scores']"
+          :data="{
+            labels: companyData['Historical Scores'].map((entry) => entry.year),
+            scores: companyData['Historical Scores'].map((entry) => entry.score)
+          }"
+        />
+        <div v-else class="h-80 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
           Loading...
         </div>
       </section>
@@ -31,7 +44,7 @@
         <p v-if="companyData.ai_summary" class="text-gray-700 leading-relaxed">
           {{ companyData.ai_summary }}
         </p>
-        <div v-else class="h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+        <div v-else class="h-80 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
           Loading...
         </div>
       </section>
@@ -54,13 +67,21 @@
       </div>
       <div class="mt-4">
         <div v-if="activeTab === 'KPI Breakdown'">
-          <KPIDrilldown v-if="companyData.kpiBreakdown" :data="companyData.kpiBreakdown" />
+          <KPIDrilldown
+            v-if="companyData"
+            :data="{
+              'Resource Use': companyData['Resource Use'],
+              Emissions: companyData.Emissions,
+              Innovation: companyData.Innovation,
+              'CSR Strategy': companyData['CSR Strategy']
+            }"
+          />
           <div v-else class="h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
             Loading...
           </div>
         </div>
         <div v-else-if="activeTab === 'Controversies'">
-          <div v-if="companyData.controversy_data">
+          <div v-if="companyData.controversy_data && companyData.controversy_data.length">
             <ul class="space-y-2">
               <li
                 v-for="entry in companyData.controversy_data"
@@ -72,7 +93,7 @@
             </ul>
           </div>
           <div v-else class="h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-            Loading...
+            No controversies found.
           </div>
         </div>
         <div v-else-if="activeTab === 'Benchmark'">
@@ -91,10 +112,17 @@
     <!-- Bottom Row -->
     <div class="bg-white shadow-lg rounded-2xl p-6">
       <h2 class="text-lg font-semibold mb-4">ESG Contribution to Investment Strategy</h2>
-      <div v-if="companyData.esg_contribution">
+      <div v-if="companyData">
         <ul class="space-y-2">
           <li
-            v-for="(value, key) in companyData.esg_contribution"
+            v-for="(value, key) in {
+              Community: companyData.Community,
+              Workforce: companyData.Workforce,
+              Shareholders: companyData.Shareholders,
+              Management: companyData.Management,
+              'Product Responsibility': companyData['Product Responsibility'],
+              'Human Rights': companyData['Human Rights']
+            }"
             :key="key"
             class="flex justify-between text-gray-700"
           >
@@ -130,6 +158,7 @@ const fetchCompanyData = async () => {
   try {
     const response = await axiosInstance.get(`/get-esg-data/${symbol}/`);
     companyData.value = response.data;
+    console.log("Company data fetched:", companyData.value);
   } catch (error) {
     console.error("Error fetching company data:", error);
   }
