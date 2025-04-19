@@ -1,5 +1,5 @@
 <template>
-  <div class="h-80 w-full bg-gray-100 rounded-lg flex items-center justify-center">
+  <div class="flex items-center justify-center w-full h-full">
     <canvas ref="radarChart" class="w-full h-full"></canvas>
   </div>
 </template>
@@ -37,7 +37,7 @@ const renderChart = () => {
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false,
+        maintainAspectRatio: true, // Dynamically adjust aspect ratio
         scales: {
           r: {
             ticks: {
@@ -55,3 +55,11 @@ onMounted(() => {
   renderChart();
 });
 </script>
+
+<style scoped>
+/* Ensure the container dynamically adjusts */
+canvas {
+  max-width: 100%;
+  max-height: 100%;
+}
+</style>

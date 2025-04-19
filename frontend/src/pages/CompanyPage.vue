@@ -5,10 +5,40 @@
       {{ companyData["Company Name"] || "Loading..." }}
     </h1>
 
+    <!-- Toggle Buttons -->
+    <div class="flex justify-center space-x-4">
+      <button
+        @click="activeSection = 'CompanyProfile'"
+        :class="[
+          'px-4 py-2 font-medium rounded-lg',
+          activeSection === 'CompanyProfile' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
+        ]"
+      >
+        Company Profile
+      </button>
+      <button
+        @click="activeSection = 'FinancialDetails'"
+        :class="[
+          'px-4 py-2 font-medium rounded-lg',
+          activeSection === 'FinancialDetails' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
+        ]"
+      >
+        Financial Details
+      </button>
+    </div>
+
+    <!-- Toggle Content -->
+    <div v-if="activeSection === 'CompanyProfile'" class="space-y-8">
+      <CompanyProfile :symbol="symbol" />
+    </div>
+    <div v-else-if="activeSection === 'FinancialDetails'" class="space-y-8">
+      <FinancialDetails :symbol="symbol" />
+    </div>
+
     <!-- Top Row -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
       <!-- Radar Chart -->
-      <section class="bg-white shadow-lg rounded-2xl p-6">
+      <section class="bg-white shadow-lg rounded-2xl p-6 flex flex-col items-center justify-center h-[450px]">
         <h2 class="text-lg font-semibold mb-4">ESG Pillar Score Breakdown</h2>
         <RadarChart
           v-if="companyData.Environmental && companyData.Social && companyData.Governance"
@@ -18,33 +48,36 @@
             governance: companyData.Governance
           }"
         />
-        <div v-else class="h-80 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+        <div v-else class="h-full w-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
           Loading...
         </div>
       </section>
 
       <!-- Line Chart -->
-      <section class="bg-white shadow-lg rounded-2xl p-6">
+      <section class="bg-white shadow-lg rounded-2xl p-6 flex flex-col items-center justify-center h-[450px]">
         <h2 class="text-lg font-semibold mb-4">ESG Score Over Time</h2>
         <LineChart
           v-if="companyData['Historical Scores']"
           :data="{
             labels: companyData['Historical Scores'].map((entry) => entry.year),
-            scores: companyData['Historical Scores'].map((entry) => entry.score)
+            scores: companyData['Historical Scores'].map((entry) => entry.score),
+            environmentalScores: companyData['Historical Scores'].map((entry) => entry.environmental),
+            socialScores: companyData['Historical Scores'].map((entry) => entry.social),
+            governanceScores: companyData['Historical Scores'].map((entry) => entry.governance)
           }"
         />
-        <div v-else class="h-80 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+        <div v-else class="h-full w-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
           Loading...
         </div>
       </section>
 
       <!-- AI Summary -->
-      <section class="bg-white shadow-lg rounded-2xl p-6">
+      <section class="bg-white shadow-lg rounded-2xl p-6 flex flex-col items-center justify-center h-[450px]">
         <h2 class="text-lg font-semibold mb-4">AI-Generated Summary</h2>
-        <p v-if="companyData.ai_summary" class="text-gray-700 leading-relaxed">
+        <p v-if="companyData.ai_summary" class="text-gray-700 leading-relaxed text-center">
           {{ companyData.ai_summary }}
         </p>
-        <div v-else class="h-80 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+        <div v-else class="h-full w-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
           Loading...
         </div>
       </section>
@@ -145,6 +178,8 @@ import axiosInstance from "@/axiosConfig";
 import RadarChart from "@/components/RadarChart.vue";
 import LineChart from "@/components/LineChart.vue";
 import KPIDrilldown from "@/components/KPIDrilldown.vue";
+import CompanyProfile from "@/components/CompanyProfile.vue";
+import FinancialDetails from "@/components/FinancialDetails.vue";
 import { Chart, registerables } from "chart.js";
 
 Chart.register(...registerables);
@@ -153,6 +188,7 @@ const route = useRoute();
 const symbol = route.params.symbol;
 
 const companyData = ref({});
+const activeSection = ref("CompanyProfile"); // Toggle between sections
 
 const fetchCompanyData = async () => {
   try {
@@ -169,48 +205,6 @@ const activeTab = ref(tabs[0]);
 
 onMounted(() => {
   fetchCompanyData();
-});
-
-const props = defineProps({
-  data: {
-    type: Array, // Updated to accept an array of historical scores
-    required: true,
-  },
-});
-
-const lineChart = ref(null);
-
-const renderChart = () => {
-  if (lineChart.value) {
-    new Chart(lineChart.value, {
-      type: "line",
-      data: {
-        labels: props.data.map((entry) => entry.year), // Extract years
-        datasets: [
-          {
-            label: "ESG Score",
-            data: props.data.map((entry) => entry.score), // Extract scores
-            backgroundColor: "rgba(54, 162, 235, 0.2)",
-            borderColor: "rgba(54, 162, 235, 1)",
-            borderWidth: 2,
-            fill: true,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        scales: {
-          y: {
-            beginAtZero: true,
-          },
-        },
-      },
-    });
-  }
-};
-
-onMounted(() => {
-  renderChart();
 });
 </script>
 

@@ -734,9 +734,18 @@ def get_company_esg_data(request, ticker):
         metrics = ESGMetric.objects.filter(company=company, year=latest_year)
         overall_esg_score = get_metric_score(metrics, "ESGScore")  # Fetch overall ESG score
         
-        # Fetch historical ESG scores
-        historical_metrics = ESGMetric.objects.filter(company=company, fieldname="ESGScore").order_by("year")
-        historical_scores = [{"year": metric.year, "score": metric.valuescore * 100} for metric in historical_metrics]
+        # Fetch historical ESG scores, including Environmental, Social, and Governance pillars
+        historical_metrics = ESGMetric.objects.filter(company=company).order_by("year")
+        historical_scores = []
+        for year in historical_metrics.values_list("year", flat=True).distinct():
+            year_metrics = historical_metrics.filter(year=year)
+            historical_scores.append({
+                "year": year,
+                "score": get_metric_score(year_metrics, "ESGScore"),
+                "environmental": get_metric_score(year_metrics, "EnvironmentPillarScore"),
+                "social": get_metric_score(year_metrics, "SocialPillarScore"),
+                "governance": get_metric_score(year_metrics, "GovernancePillarScore"),
+            })
 
         # Prepare the response data
         data = {
@@ -757,31 +766,14 @@ def get_company_esg_data(request, ticker):
             "Management": get_metric_score(metrics, "ESGManagementScore"),
             "Shareholders": get_metric_score(metrics, "ESGShareholdersScore"),
             "CSR Strategy": get_metric_score(metrics, "ESGCsrStrategyScore"),
-            "Historical Scores": historical_scores  # Add historical ESG scores
+            "Historical Scores": historical_scores,  # Add historical ESG scores
         }
         
         # Fetch controversy data
         controversies = ESGMetric.objects.filter(company=company, fieldname="ControversyScore").order_by("-year")
         controversy_data = [{"year": metric.year, "score": metric.valuescore * 100} for metric in controversies]
 
-        # Fetch benchmark data
-        # industry_benchmark = ESGMetric.objects.filter(
-        #     company__industry=company.industry, fieldname="ESGScore"
-        # ).aggregate(avg_score=Avg("valuescore"))["avg_score"]
-
         data["controversy_data"] = controversy_data
-        # data["industry_benchmark"] = round(industry_benchmark * 100, 2) if industry_benchmark else None
-        
-        # Generate AI summary
-        # ai_summary_prompt = f"""
-        # Provide a concise summary of the ESG performance for the company:
-        # - Name: {company.name}
-        # - Environmental Score: {data['environmental']}
-        # - Social Score: {data['social']}
-        # - Governance Score: {data['governance']}
-        # """
-        # ai_summary = generate_ai_summary(ai_summary_prompt)  # Call a helper function to generate the summary
-        # data["ai_summary"] = ai_summary
         
         return JsonResponse(data, status=200)
     except Exception as e:
