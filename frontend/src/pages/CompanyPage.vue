@@ -41,11 +41,11 @@
       <section class="bg-white shadow-lg rounded-2xl p-6 flex flex-col items-center justify-center h-[450px]">
         <h2 class="text-lg font-semibold mb-4">ESG Pillar Score Breakdown</h2>
         <RadarChart
-          v-if="companyData.Environmental && companyData.Social && companyData.Governance"
+          v-if="kpiDrilldownData.Environment && kpiDrilldownData.Social && kpiDrilldownData.Governance"
           :data="{
-            environmental: companyData.Environmental,
-            social: companyData.Social,
-            governance: companyData.Governance
+            environmental: kpiDrilldownData.Environment.score,
+            social: kpiDrilldownData.Social.score,
+            governance: kpiDrilldownData.Governance.score
           }"
         />
         <div v-else class="h-full w-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
@@ -71,14 +71,31 @@
         </div>
       </section>
 
-      <!-- AI Summary -->
+      <!-- Industry Benchmark -->
       <section class="bg-white shadow-lg rounded-2xl p-6 flex flex-col items-center justify-center h-[450px]">
-        <h2 class="text-lg font-semibold mb-4">AI-Generated Summary</h2>
-        <p v-if="companyData.ai_summary" class="text-gray-700 leading-relaxed text-center">
-          {{ companyData.ai_summary }}
-        </p>
+        <h2 class="text-lg font-semibold mb-4">Industry Benchmark</h2>
+        <div v-if="benchmark">
+          <ul class="space-y-2">
+            <li class="flex justify-between text-gray-700">
+              <span>Environmental</span>
+              <span class="font-medium">{{ benchmark.environmental.toFixed(2) }}</span>
+            </li>
+            <li class="flex justify-between text-gray-700">
+              <span>Social</span>
+              <span class="font-medium">{{ benchmark.social.toFixed(2) }}</span>
+            </li>
+            <li class="flex justify-between text-gray-700">
+              <span>Governance</span>
+              <span class="font-medium">{{ benchmark.governance.toFixed(2) }}</span>
+            </li>
+            <li class="flex justify-between text-gray-700">
+              <span>Overall ESG</span>
+              <span class="font-medium">{{ benchmark.esg.toFixed(2) }}</span>
+            </li>
+          </ul>
+        </div>
         <div v-else class="h-full w-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-          Loading...
+          Industry Benchmark not available.
         </div>
       </section>
     </div>
@@ -100,18 +117,7 @@
       </div>
       <div class="mt-4">
         <div v-if="activeTab === 'KPI Breakdown'">
-          <KPIDrilldown
-            v-if="companyData"
-            :data="{
-              'Resource Use': companyData['Resource Use'],
-              Emissions: companyData.Emissions,
-              Innovation: companyData.Innovation,
-              'CSR Strategy': companyData['CSR Strategy']
-            }"
-          />
-          <div v-else class="h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-            Loading...
-          </div>
+          <KPIDrilldown :data="kpiDrilldownData" />
         </div>
         <div v-else-if="activeTab === 'Controversies'">
           <div v-if="companyData.controversy_data && companyData.controversy_data.length">
@@ -129,42 +135,93 @@
             No controversies found.
           </div>
         </div>
-        <div v-else-if="activeTab === 'Benchmark'">
-          <div v-if="companyData.industry_benchmark">
-            <p class="text-gray-700">
-              Industry Benchmark ESG Score: <span class="font-medium">{{ companyData.industry_benchmark }}</span>
-            </p>
+        <div v-else-if="activeTab === 'Peer Scores'">
+          <div v-if="peers.length">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="border-b">
+                  <th class="py-2">Company</th>
+                  <th class="py-2">Ticker</th>
+                  <th class="py-2">Environmental</th>
+                  <th class="py-2">Social</th>
+                  <th class="py-2">Governance</th>
+                  <th class="py-2">Overall ESG</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="peer in peers" :key="peer.ticker" class="border-b">
+                  <td class="py-2">{{ peer.company_name || "N/A" }}</td>
+                  <td class="py-2">{{ peer.ticker }}</td>
+                  <td class="py-2">{{ peer.environmental }}</td>
+                  <td class="py-2">{{ peer.social }}</td>
+                  <td class="py-2">{{ peer.governance }}</td>
+                  <td class="py-2">{{ peer.esg }}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
           <div v-else class="h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-            Loading...
+            Peer Scores not available.
           </div>
+        </div>
+        <div v-else-if="activeTab === 'Latest News'">
+          <section>
+            <h2 class="text-lg font-semibold mb-4">Latest News</h2>
+            <ul v-if="latestNews.length" class="space-y-4">
+              <li
+                v-for="news in latestNews"
+                :key="news.id"
+                class="border-b pb-4"
+              >
+                <h3 class="font-semibold text-gray-800">{{ news.title }}</h3>
+                <p class="text-gray-600">{{ news.summary }}</p>
+                <a
+                  :href="news.url"
+                  target="_blank"
+                  class="text-blue-600 hover:underline"
+                >
+                  Read more
+                </a>
+              </li>
+            </ul>
+            <div v-else class="h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+              Latest News not available.
+            </div>
+          </section>
         </div>
       </div>
     </div>
 
-    <!-- Bottom Row -->
+    <!-- AI Summary -->
     <div class="bg-white shadow-lg rounded-2xl p-6">
-      <h2 class="text-lg font-semibold mb-4">ESG Contribution to Investment Strategy</h2>
-      <div v-if="companyData">
-        <ul class="space-y-2">
-          <li
-            v-for="(value, key) in {
-              Community: companyData.Community,
-              Workforce: companyData.Workforce,
-              Shareholders: companyData.Shareholders,
-              Management: companyData.Management,
-              'Product Responsibility': companyData['Product Responsibility'],
-              'Human Rights': companyData['Human Rights']
-            }"
-            :key="key"
-            class="flex justify-between text-gray-700"
-          >
-            <span>{{ key }}</span><span class="font-medium">{{ value }}</span>
-          </li>
-        </ul>
+      <h2 class="text-lg font-semibold mb-4">AI-Generated Summary</h2>
+      <p v-if="companyData.ai_summary" class="text-gray-700 leading-relaxed text-center">
+        {{ companyData.ai_summary }}
+      </p>
+      <div v-else class="h-full w-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+        AI Summary not available.
       </div>
-      <div v-else class="h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-        Loading...
+    </div>
+
+    <!-- ChatGPT Q&A -->
+    <div class="bg-white shadow-lg rounded-2xl p-6">
+      <h2 class="text-lg font-semibold mb-4">Ask ChatGPT</h2>
+      <textarea
+        v-model="chatInput"
+        placeholder="Ask a question about this company..."
+        class="w-full p-4 border rounded-lg mb-4"
+      ></textarea>
+      <button
+        @click="askChatGPT"
+        class="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700"
+      >
+        Ask
+      </button>
+      <div v-if="chatResponse" class="mt-4 p-4 bg-gray-100 rounded-lg text-gray-700">
+        {{ chatResponse }}
+      </div>
+      <div v-else class="mt-4 p-4 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+        ChatGPT is currently unavailable.
       </div>
     </div>
   </div>
@@ -185,26 +242,83 @@ import { Chart, registerables } from "chart.js";
 Chart.register(...registerables);
 
 const route = useRoute();
-const symbol = route.params.symbol;
+const symbol = route.params.symbol; // Dynamically fetch the symbol from the route
 
 const companyData = ref({});
 const activeSection = ref("CompanyProfile"); // Toggle between sections
+const peers = ref([]); // Default empty array for Peer Scores
+const benchmark = ref(null); // Default null for Industry Benchmark
+const tabs = ["KPI Breakdown", "Controversies", "Peer Scores", "Latest News"]; // Tabs for the second row
+const activeTab = ref(tabs[0]);
+const kpiDrilldownData = ref({});
+const latestNews = ref([]); // Default empty array for Latest News
+const chatInput = ref("");
+const chatResponse = ref(""); // Default empty string for ChatGPT response
 
 const fetchCompanyData = async () => {
   try {
     const response = await axiosInstance.get(`/get-esg-data/${symbol}/`);
     companyData.value = response.data;
+    kpiDrilldownData.value = response.data["KPI Drilldown"] || {}; // Fallback to empty object
     console.log("Company data fetched:", companyData.value);
   } catch (error) {
     console.error("Error fetching company data:", error);
   }
 };
 
-const tabs = ["KPI Breakdown", "Controversies", "Benchmark"];
-const activeTab = ref(tabs[0]);
+const fetchPeerScores = async () => {
+  try {
+    const response = await axiosInstance.get(`/fetch-esg-peer-scores/${symbol}/`);
+    peers.value = response.data || []; // Fallback to empty array
+    console.log("Peer scores fetched:", peers.value);
+  } catch (error) {
+    console.warn("Peer Scores backend not implemented or unavailable.");
+  }
+};
 
-onMounted(() => {
-  fetchCompanyData();
+const fetchLatestNews = async () => {
+  try {
+    const response = await axiosInstance.get(`/fetch-esg-news/${symbol}/`);
+    latestNews.value = response.data || []; // Fallback to empty array
+    console.log("Latest news fetched:", latestNews.value);
+  } catch (error) {
+    console.warn("Latest News backend not implemented or unavailable.");
+  }
+};
+
+const fetchIndustryBenchmark = async () => {
+  try {
+    const response = await axiosInstance.get(`/fetch-industry-benchmark/${symbol}/`);
+    benchmark.value = response.data || null; // Fallback to null
+    console.log("Industry benchmark fetched:", benchmark.value);
+  } catch (error) {
+    console.warn("Industry Benchmark backend not implemented or unavailable.");
+  }
+};
+
+const askChatGPT = async () => {
+  try {
+    const response = await axiosInstance.post(`/chatgpt-advisor/`, {
+      question: chatInput.value,
+      symbol,
+    });
+    chatResponse.value = response.data.answer || "No response available."; // Fallback message
+    console.log("ChatGPT response:", chatResponse.value);
+  } catch (error) {
+    console.warn("ChatGPT backend not implemented or unavailable.");
+    chatResponse.value = "ChatGPT is currently unavailable.";
+  }
+};
+
+onMounted(async () => {
+  try {
+    await fetchCompanyData();
+    fetchPeerScores(); // Non-blocking
+    fetchLatestNews(); // Non-blocking
+    fetchIndustryBenchmark(); // Non-blocking
+  } catch (error) {
+    console.error("Error initializing page:", error);
+  }
 });
 </script>
 

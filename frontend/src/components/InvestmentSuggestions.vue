@@ -12,10 +12,13 @@
   const suggestion = ref("");
   
   const loadSuggestions = async () => {
-    const response = await axios.get("/api/investment-recommendations/");
-    suggestion.value = response.data.recommendation;
+    try {
+      const response = await axios.get("/investment-recommendations/"); // Update the URL if necessary
+      console.log(response.data);
+    } catch (error) {
+      console.error("Error fetching investment recommendations:", error);
+    }
   };
   
   onMounted(loadSuggestions);
   </script>
-  

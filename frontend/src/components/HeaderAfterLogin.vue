@@ -11,7 +11,7 @@
           <div class="dropdown-content">
             <router-link to="/account/portfolio">Portfolio</router-link>
             <router-link to="/account/preferences">Preferences</router-link>
-            <router-link to="/company">Company Insights</router-link>
+            <router-link to="/search-company">Company Search</router-link>
             <router-link to="/reports">Reports</router-link>
             </div>
         </div>

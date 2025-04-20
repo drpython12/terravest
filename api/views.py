@@ -443,25 +443,36 @@ def get_company_esg_data(company):
     """Fetch ESG data for a single company."""
     latest_year = get_latest_year_for_company(company)
     metrics = ESGMetric.objects.filter(company=company, year=latest_year)
-    overall_esg_score = get_metric_score(metrics, "ESGScore")  # Fetch overall ESG score
+
     return {
-        "id": company.id,
-        "company_name": company.name,
-        "symbol": company.ticker,
-        "overall_esg_score": overall_esg_score,  # Add overall ESG score
-        "environmental": get_metric_score(metrics, "EnvironmentPillarScore"),
-        "social": get_metric_score(metrics, "SocialPillarScore"),
-        "governance": get_metric_score(metrics, "GovernancePillarScore"),
-        "emissions": get_metric_score(metrics, "ESGEmissionsScore"),
-        "resource_use": get_metric_score(metrics, "ESGResourceUseScore"),
-        "innovation": get_metric_score(metrics, "ESGInnovationScore"),
-        "human_rights": get_metric_score(metrics, "ESGHumanRightsScore"),
-        "product_responsibility": get_metric_score(metrics, "ESGProductResponsibilityScore"),
-        "workforce": get_metric_score(metrics, "ESGWorkforceScore"),
-        "community": get_metric_score(metrics, "ESGCommunityScore"),
-        "management": get_metric_score(metrics, "ESGManagementScore"),
-        "shareholders": get_metric_score(metrics, "ESGShareholdersScore"),
-        "csr_strategy": get_metric_score(metrics, "ESGCsrStrategyScore"),
+        "Governance": {
+            "color": "#2F855A",
+            "score": get_metric_score(metrics, "GovernancePillarScore"),
+            "details": {
+                "Management": get_metric_score(metrics, "ESGManagementScore"),
+                "Shareholders": get_metric_score(metrics, "ESGShareholdersScore"),
+                "CSR Strategy": get_metric_score(metrics, "ESGCsrStrategyScore"),
+            },
+        },
+        "Environment": {
+            "color": "#6B46C1",
+            "score": get_metric_score(metrics, "EnvironmentPillarScore"),
+            "details": {
+                "Emissions": get_metric_score(metrics, "ESGEmissionsScore"),
+                "Resource Use": get_metric_score(metrics, "ESGResourceUseScore"),
+                "Innovation": get_metric_score(metrics, "ESGInnovationScore"),
+            },
+        },
+        "Social": {
+            "color": "#D69E2E",
+            "score": get_metric_score(metrics, "SocialPillarScore"),
+            "details": {
+                "Human Rights": get_metric_score(metrics, "ESGHumanRightsScore"),
+                "Product Responsibility": get_metric_score(metrics, "ESGProductResponsibilityScore"),
+                "Workforce": get_metric_score(metrics, "ESGWorkforceScore"),
+                "Community": get_metric_score(metrics, "ESGCommunityScore"),
+            },
+        },
     }
 
 
@@ -747,25 +758,45 @@ def get_company_esg_data(request, ticker):
                 "governance": get_metric_score(year_metrics, "GovernancePillarScore"),
             })
 
-        # Prepare the response data
+        # Prepare the response data for KPI drilldown
+        kpi_drilldown_data = {
+            "Environment": {
+                "color": "#6B46C1",
+                "score": get_metric_score(metrics, "EnvironmentPillarScore"),
+                "details": {
+                    "Emissions": get_metric_score(metrics, "ESGEmissionsScore"),
+                    "Resource Use": get_metric_score(metrics, "ESGResourceUseScore"),
+                    "Innovation": get_metric_score(metrics, "ESGInnovationScore"),
+                },
+            },
+            "Social": {
+                "color": "#D69E2E",
+                "score": get_metric_score(metrics, "SocialPillarScore"),
+                "details": {
+                    "Human Rights": get_metric_score(metrics, "ESGHumanRightsScore"),
+                    "Product Responsibility": get_metric_score(metrics, "ESGProductResponsibilityScore"),
+                    "Workforce": get_metric_score(metrics, "ESGWorkforceScore"),
+                    "Community": get_metric_score(metrics, "ESGCommunityScore"),
+                },
+            },
+            "Governance": {
+                "color": "#2F855A",
+                "score": get_metric_score(metrics, "GovernancePillarScore"),
+                "details": {
+                    "Management": get_metric_score(metrics, "ESGManagementScore"),
+                    "Shareholders": get_metric_score(metrics, "ESGShareholdersScore"),
+                    "CSR Strategy": get_metric_score(metrics, "ESGCsrStrategyScore"),
+                },
+            }
+        }
+
+        # Prepare the full response data
         data = {
-            "id": company.id,
+            "id": company.orgperm_id,
             "Company Name": company.name,
             "Symbol": company.ticker,
             "Overall ESG Score": overall_esg_score,
-            "Environmental": get_metric_score(metrics, "EnvironmentPillarScore"),
-            "Social": get_metric_score(metrics, "SocialPillarScore"),
-            "Governance": get_metric_score(metrics, "GovernancePillarScore"),
-            "Emissions": get_metric_score(metrics, "ESGEmissionsScore"),
-            "Resource Use": get_metric_score(metrics, "ESGResourceUseScore"),
-            "Innovation": get_metric_score(metrics, "ESGInnovationScore"),
-            "Human Rights": get_metric_score(metrics, "ESGHumanRightsScore"),
-            "Product Responsibility": get_metric_score(metrics, "ESGProductResponsibilityScore"),
-            "Workforce": get_metric_score(metrics, "ESGWorkforceScore"),
-            "Community": get_metric_score(metrics, "ESGCommunityScore"),
-            "Management": get_metric_score(metrics, "ESGManagementScore"),
-            "Shareholders": get_metric_score(metrics, "ESGShareholdersScore"),
-            "CSR Strategy": get_metric_score(metrics, "ESGCsrStrategyScore"),
+            "KPI Drilldown": kpi_drilldown_data,  # Add KPI drilldown data
             "Historical Scores": historical_scores,  # Add historical ESG scores
         }
         
@@ -801,3 +832,97 @@ def calculate_esg_contribution(company, portfolio_weight):
         "social": company.social * portfolio_weight,
         "governance": company.governance * portfolio_weight,
     }
+
+
+@csrf_exempt
+@login_required
+def fetch_esg_news(request):
+    """
+    Fetch ESG-related news from the Yahoo Finance API.
+    """
+    try:
+        # Set up the connection to the Yahoo Finance API
+        conn = http.client.HTTPSConnection("yahoo-finance-real-time1.p.rapidapi.com")
+
+        headers = {
+            'x-rapidapi-key': "c4cf9f510cmsh80ee50ea6a7d2b3p171c27jsnab5350889c90",
+            'x-rapidapi-host': "yahoo-finance-real-time1.p.rapidapi.com"
+        }
+
+        # Make the request to fetch ESG-related news
+        conn.request("GET", "/search?query=Nvidia&region=US", headers=headers)
+        res = conn.getresponse()
+        data = res.read()
+
+        # Decode the response and return it as JSON
+        return JsonResponse(data.decode("utf-8"), safe=False)
+
+    except Exception as e:
+        # Handle any errors that occur during the request
+        return JsonResponse({"error": str(e)}, status=500)
+
+from django.db.models import Avg
+
+@csrf_exempt
+@login_required
+def fetch_esg_peer_scores(request, symbol):
+    """
+    Fetch ESG peer scores for a given company symbol using the Yahoo Finance API
+    and calculate the industry benchmark.
+    """
+    try:
+        # Set up the connection to the Yahoo Finance API
+        conn = http.client.HTTPSConnection("yahoo-finance-real-time1.p.rapidapi.com")
+        headers = {
+            'x-rapidapi-key': "c4cf9f510cmsh80ee50ea6a7d2b3p171c27jsnab5350889c90",
+            'x-rapidapi-host': "yahoo-finance-real-time1.p.rapidapi.com"
+        }
+
+        # Make the request to fetch similar companies
+        conn.request("GET", f"/stock/get-similar?region=US&lang=en-US&symbol={symbol}", headers=headers)
+        res = conn.getresponse()
+        data = res.read()
+        similar_companies = json.loads(data)
+
+        # Extract peer symbols and names from the response
+        quotes = similar_companies.get("finance", {}).get("result", {}).get("quotes", [])
+        if not quotes:
+            return JsonResponse({"error": "No similar companies found."}, status=404)
+
+        peer_scores = []
+        for quote in quotes:
+            peer_symbol = quote.get("symbol")
+            peer_name = quote.get("shortName", "Unknown")
+
+            # Fetch ESG data for each peer from the database
+            company = ESGCompany.objects.filter(ticker=peer_symbol).first()
+            if not company:
+                continue
+
+            latest_year = get_latest_year_for_company(company)
+            metrics = ESGMetric.objects.filter(company=company, year=latest_year)
+
+            peer_scores.append({
+                "ticker": peer_symbol,
+                "company_name": peer_name,
+                "environmental": get_metric_score(metrics, "EnvironmentPillarScore"),
+                "social": get_metric_score(metrics, "SocialPillarScore"),
+                "governance": get_metric_score(metrics, "GovernancePillarScore"),
+                "esg": get_metric_score(metrics, "ESGScore"),
+            })
+
+        # Calculate the industry benchmark
+        if peer_scores:
+            benchmark = {
+                "environmental": sum(score["environmental"] for score in peer_scores) / len(peer_scores),
+                "social": sum(score["social"] for score in peer_scores) / len(peer_scores),
+                "governance": sum(score["governance"] for score in peer_scores) / len(peer_scores),
+                "esg": sum(score["esg"] for score in peer_scores) / len(peer_scores),
+            }
+        else:
+            benchmark = {"environmental": 0, "social": 0, "governance": 0, "esg": 0}
+
+        return JsonResponse({"peers": peer_scores, "benchmark": benchmark}, status=200)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

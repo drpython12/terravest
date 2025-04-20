@@ -144,11 +144,11 @@ class ESGMetric(models.Model):
     hierarchy = models.CharField(max_length=50)
     pillar = models.CharField(max_length=50)
     fieldname = models.CharField(max_length=100)
-    valuedate = models.DateField()
-    value = models.CharField(max_length=5)
+    value = models.TextField()
     valuescore = models.FloatField()
 
     class Meta:
+        unique_together = ('company', 'year', 'fieldid')  # Add this constraint
         indexes = [
             models.Index(fields=['year']),
             models.Index(fields=['fieldname']),
