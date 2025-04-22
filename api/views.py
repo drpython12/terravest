@@ -16,10 +16,19 @@ from django.core.paginator import Paginator
 from .models import PortfolioStock, User, UserPreferences, ESGCompany, ESGMetric
 from django.core.cache import cache
 import logging
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from django.conf import settings
+from openai import OpenAI
+from rest_framework.parsers import JSONParser
+
+client = OpenAI(api_key=settings.OPENAI_API_KEY)
+
 
 logger = logging.getLogger(__name__)
 
 ALPHA_VANTAGE_API_KEY = 'PNPAH7B7UT76I8OI'
+  # Store securely in `.env`
 
 
 def json_response(data, status=200):
@@ -265,7 +274,7 @@ def get_stock_price(request):
     symbol = request.GET.get("symbol", "").strip().upper()
     if not symbol:
         return json_response({"error": "Symbol is required"}, status=400)
-    
+
     connection = http.client.HTTPSConnection("yahoo-finance-real-time1.p.rapidapi.com")
 
     headers = {
@@ -277,10 +286,10 @@ def get_stock_price(request):
     response = connection.getresponse()
     data = response.read().decode("utf-8")
     json_data = json.loads(data)
-    
+
     # Extract the regularMarketPrice field
     price = json_data["quoteSummary"]["result"][0]["price"]["regularMarketPrice"]
-    
+
     return json_response({"symbol": symbol, "price": round(price, 2)})
 
 @csrf_exempt
@@ -660,7 +669,7 @@ def get_top_holdings(portfolio_stocks):
     ).values('company_name', 'symbol', 'shares', 'amount_invested')
 
 
-import openai
+from openai import OpenAI
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 import json
@@ -668,7 +677,6 @@ from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 
 # Set your OpenAI API key
-openai.api_key = "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"
 
 @csrf_exempt
 @login_required
@@ -710,12 +718,10 @@ def chatgpt_advisor(request):
             """
 
             # Call OpenAI's GPT model
-            response = openai.Completion.create(
-                engine="text-davinci-003",
-                prompt=prompt,
-                max_tokens=500,
-                temperature=0.7,
-            )
+            response = client.completions.create(engine="text-davinci-003",
+            prompt=prompt,
+            max_tokens=500,
+            temperature=0.7)
 
             # Extract the response text
             answer = response.choices[0].text.strip()
@@ -739,12 +745,12 @@ def get_company_esg_data(request, ticker):
     try:
         # Fetch the company using the ticker
         company = get_object_or_404(ESGCompany, ticker=ticker)
-        
+
         # Fetch ESG data for the company
         latest_year = get_latest_year_for_company(company)
         metrics = ESGMetric.objects.filter(company=company, year=latest_year)
         overall_esg_score = get_metric_score(metrics, "ESGScore")  # Fetch overall ESG score
-        
+
         # Fetch historical ESG scores, including Environmental, Social, and Governance pillars
         historical_metrics = ESGMetric.objects.filter(company=company).order_by("year")
         historical_scores = []
@@ -790,6 +796,23 @@ def get_company_esg_data(request, ticker):
             }
         }
 
+        # Fetch controversy data and prepare controversy categories
+        controversies = ESGMetric.objects.filter(company=company, fieldname__icontains="Controversies").order_by("year")
+        controversy_data = {}
+        controversy_categories = set()  # Use a set to avoid duplicates
+        for metric in controversies:
+            year = metric.year
+            if year not in controversy_data:
+                controversy_data[year] = {}
+            controversy_data[year][metric.fieldname] = {
+                "value": metric.value,
+                "valuescore": round(metric.valuescore * 100, 2) if metric.valuescore else None,
+            }
+            controversy_categories.add(metric.fieldname)
+
+        # Convert controversy_categories to a sorted list
+        controversy_categories = sorted(controversy_categories)
+
         # Prepare the full response data
         data = {
             "id": company.orgperm_id,
@@ -798,14 +821,10 @@ def get_company_esg_data(request, ticker):
             "Overall ESG Score": overall_esg_score,
             "KPI Drilldown": kpi_drilldown_data,  # Add KPI drilldown data
             "Historical Scores": historical_scores,  # Add historical ESG scores
+            "Controversy Data": controversy_data,  # Add controversy data
+            "Controversy Categories": controversy_categories,  # Add controversy categories
         }
-        
-        # Fetch controversy data
-        controversies = ESGMetric.objects.filter(company=company, fieldname="ControversyScore").order_by("-year")
-        controversy_data = [{"year": metric.year, "score": metric.valuescore * 100} for metric in controversies]
 
-        data["controversy_data"] = controversy_data
-        
         return JsonResponse(data, status=200)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
@@ -813,12 +832,10 @@ def get_company_esg_data(request, ticker):
 def generate_ai_summary(prompt):
     """Generate an AI summary using OpenAI."""
     try:
-        response = openai.Completion.create(
-            engine="text-davinci-003",
-            prompt=prompt,
-            max_tokens=150,
-            temperature=0.7,
-        )
+        response = client.completions.create(engine="text-davinci-003",
+        prompt=prompt,
+        max_tokens=150,
+        temperature=0.7)
         return response.choices[0].text.strip()
     except Exception as e:
         logger.error(f"Error generating AI summary: {e}")
@@ -925,4 +942,153 @@ def fetch_esg_peer_scores(request, symbol):
         return JsonResponse({"peers": peer_scores, "benchmark": benchmark}, status=200)
 
     except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+def build_prompt(company_name, strategy, esg_data, controversies, detail_level):
+    """Build the prompt for ChatGPT."""
+    prompt = f"""
+    You are an ESG investing expert helping users evaluate companies based on ESG scores, controversies, and investment strategies.
+
+    The company in question is:
+    - Name: {company_name}
+
+    ESG Data:
+    - Environmental: {esg_data.get('environmental', 'N/A')}
+    - Social: {esg_data.get('social', 'N/A')}
+    - Governance: {esg_data.get('governance', 'N/A')}
+    - Overall ESG Score: {esg_data.get('esg', 'N/A')}
+
+    Controversies:
+    {controversies if controversies else "No controversies reported."}
+
+    User's Investment Strategy:
+    - {strategy}
+
+    Provide a {detail_level} insight into how this company aligns with the user's preferences.
+    """
+    return prompt
+
+@api_view(["POST"])
+def generate_esg_insight(request):
+    """Generate AI-based ESG insight for a company."""
+    logger.info("generate_esg_insight endpoint called.")
+
+    if request.method != "POST":
+        logger.error("Invalid request method.")
+        return JsonResponse({"error": "Invalid request method."}, status=405)
+
+    try:
+        # Parse the request body
+        logger.info("Parsing request body...")
+        data = request.data  # Use DRF's request.data
+        symbol = data.get("symbol")
+
+        # Validate the symbol
+        if not isinstance(symbol, str) or not symbol.strip():
+            logger.error(f"Invalid symbol received: {symbol}")
+            return JsonResponse({"error": "Invalid symbol. It must be a non-empty string."}, status=400)
+
+        user = request.user
+        logger.info(f"Request body parsed. Symbol: {symbol}, User: {user}")
+
+        # Fetch company data
+        logger.info("Fetching company data...")
+        company = ESGCompany.objects.filter(ticker=symbol).first()
+        if not company:
+            logger.error(f"Company not found for symbol: {symbol}")
+            return JsonResponse({"error": "Company not found."}, status=404)
+        logger.info(f"Company found: {company.name} ({company.ticker})")
+
+        # Fetch ESG metrics
+        logger.info("Fetching ESG metrics...")
+        latest_year = ESGMetric.objects.filter(company=company).aggregate(latest_year=Max("year"))["latest_year"]
+        logger.info(f"Latest year for ESG metrics: {latest_year}")
+        metrics = ESGMetric.objects.filter(company=company, year=latest_year)
+        esg_data = {
+            "environmental": metrics.filter(fieldname="EnvironmentPillarScore").first().valuescore if metrics.filter(fieldname="EnvironmentPillarScore").exists() else 0,
+            "social": metrics.filter(fieldname="SocialPillarScore").first().valuescore if metrics.filter(fieldname="SocialPillarScore").exists() else 0,
+            "governance": metrics.filter(fieldname="GovernancePillarScore").first().valuescore if metrics.filter(fieldname="GovernancePillarScore").exists() else 0,
+            "esg": metrics.filter(fieldname="ESGScore").first().valuescore if metrics.filter(fieldname="ESGScore").exists() else 0,
+        }
+        logger.info(f"ESG data fetched: {esg_data}")
+
+        # Fetch user preferences
+        logger.info("Fetching user preferences...")
+        preferences = UserPreferences.objects.filter(user=user).first()
+        if not preferences:
+            logger.error(f"User preferences not found for user: {user}")
+            return JsonResponse({"error": "User preferences not found."}, status=404)
+        logger.info(f"User preferences found: {preferences.investment_strategy}")
+
+        # Build the prompt
+        logger.info("Building the prompt...")
+        prompt = {
+            "model": "gpt-4.1-mini",
+            "messages": [
+                {"role": "system", "content": "You are an ESG investing expert helping users evaluate companies based on ESG scores, controversies, and investment strategies."},
+                {"role": "user", "content": f"""
+                    Analyze the ESG performance of {company.name} based on the provided ESG data and the user's investment strategy: {preferences.investment_strategy}.
+                    Provide a structured JSON response in the following format:
+
+                    {{
+                        "esgScores": {{
+                            "Environmental": {{
+                                "score": <score>,
+                                "interpretation": "<interpretation>"
+                            }},
+                            "Social": {{
+                                "score": <score>,
+                                "interpretation": "<interpretation>"
+                            }},
+                            "Governance": {{
+                                "score": <score>,
+                                "interpretation": "<interpretation>"
+                            }},
+                            "Overall": {{
+                                "score": <score>,
+                                "interpretation": "<interpretation>"
+                            }}
+                        }},
+                        "controversies": {{
+                            "details": "<details>",
+                            "interpretation": "<interpretation>"
+                        }},
+                        "alignment": {{
+                            "strategy": "{preferences.investment_strategy}",
+                            "strengths": ["<strength1>", "<strength2>", ...],
+                            "risks": ["<risk1>", "<risk2>", ...],
+                            "conclusion": "<conclusion>"
+                        }},
+                        "summary": "<summary>"
+                    }}
+
+                    Ensure the response is valid JSON and adheres to this structure. Avoid any additional text outside the JSON object.
+                """}
+            ],
+            "temperature": 0.7,
+            "max_tokens": 1000
+        }
+        logger.info("Prompt built successfully.")
+
+        # Call OpenAI API
+        logger.info("Calling OpenAI API...")
+        response = client.chat.completions.create(**prompt)
+        logger.info("OpenAI API call successful.")
+
+        # Parse the response
+        result = response.choices[0].message.content
+        try:
+            structured_response = json.loads(result)  # Ensure the response is valid JSON
+        except json.JSONDecodeError:
+            logger.error("Invalid JSON format in AI response.")
+            return JsonResponse({"error": "Invalid JSON format in AI response."}, status=500)
+
+        logger.info("AI response parsed successfully.")
+        return JsonResponse({"insight": structured_response}, status=200)
+
+    except json.JSONDecodeError:
+        logger.error("Invalid JSON format in request body.")
+        return JsonResponse({"error": "Invalid JSON format."}, status=400)
+    except Exception as e:
+        logger.error(f"An error occurred: {str(e)}")
         return JsonResponse({"error": str(e)}, status=500)

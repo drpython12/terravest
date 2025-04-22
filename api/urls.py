@@ -17,7 +17,8 @@ from .views import (
     chatgpt_advisor,
     get_company_esg_data,
     fetch_esg_news,
-    fetch_esg_peer_scores
+    fetch_esg_peer_scores,
+    generate_esg_insight
 )
 
 urlpatterns = [
@@ -38,5 +39,6 @@ urlpatterns = [
     path('api/chatgpt-advisor/', chatgpt_advisor, name='chatgpt_advisor'),  # New endpoint for ChatGPT
     path('api/get-esg-data/<str:ticker>/', get_company_esg_data, name='company_esg_data'),  # New endpoint for ChatGPT with question
     path('api/fetch-esg-news/', fetch_esg_news, name='fetch_esg_news'),
-    path('api/fetch-esg-peer-scores/<str:symbol>/', fetch_esg_peer_scores, name='fetch_esg_peer_scores')
+    path('api/fetch-esg-peer-scores/<str:symbol>/', fetch_esg_peer_scores, name='fetch_esg_peer_scores'),
+    path('api/generate-esg-insight/', generate_esg_insight, name='generate_esg_insight'),
 ]

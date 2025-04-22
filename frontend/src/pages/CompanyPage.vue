@@ -120,19 +120,14 @@
           <KPIDrilldown :data="kpiDrilldownData" />
         </div>
         <div v-else-if="activeTab === 'Controversies'">
-          <div v-if="companyData.controversy_data && companyData.controversy_data.length">
-            <ul class="space-y-2">
-              <li
-                v-for="entry in companyData.controversy_data"
-                :key="entry.year"
-                class="flex justify-between text-gray-700"
-              >
-                <span>{{ entry.year }}</span><span class="font-medium">{{ entry.score }}</span>
-              </li>
-            </ul>
-          </div>
-          <div v-else class="h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-            No controversies found.
+          <div>
+            <div v-if="error" class="text-red-500">{{ error }}</div>
+            <Controversies
+              v-if="!error && Object.keys(controversyData).length && controversyCategories.length"
+              :controversyData="controversyData"
+              :controversyCategories="controversyCategories"
+            />
+            <div v-else-if="!error" class="text-gray-500">Loading controversies data...</div>
           </div>
         </div>
         <div v-else-if="activeTab === 'Peer Scores'">
@@ -193,15 +188,7 @@
     </div>
 
     <!-- AI Summary -->
-    <div class="bg-white shadow-lg rounded-2xl p-6">
-      <h2 class="text-lg font-semibold mb-4">AI-Generated Summary</h2>
-      <p v-if="companyData.ai_summary" class="text-gray-700 leading-relaxed text-center">
-        {{ companyData.ai_summary }}
-      </p>
-      <div v-else class="h-full w-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-        AI Summary not available.
-      </div>
-    </div>
+    <AI :insight="aiInsight" :loading="aiLoading" />
 
     <!-- ChatGPT Q&A -->
     <div class="bg-white shadow-lg rounded-2xl p-6">
@@ -237,6 +224,8 @@ import LineChart from "@/components/LineChart.vue";
 import KPIDrilldown from "@/components/KPIDrilldown.vue";
 import CompanyProfile from "@/components/CompanyProfile.vue";
 import FinancialDetails from "@/components/FinancialDetails.vue";
+import Controversies from "@/components/Controversies.vue";
+import AI from "@/components/AI.vue";
 import { Chart, registerables } from "chart.js";
 
 Chart.register(...registerables);
@@ -254,15 +243,27 @@ const kpiDrilldownData = ref({});
 const latestNews = ref([]); // Default empty array for Latest News
 const chatInput = ref("");
 const chatResponse = ref(""); // Default empty string for ChatGPT response
+const controversyData = ref({}); // Default empty object for Controversy Data
+const controversyCategories = ref([]); // Default empty array
+const error = ref(null);
+const aiInsight = ref(""); // AI-generated summary
+const aiLoading = ref(true); // Loading state for AI summary
 
 const fetchCompanyData = async () => {
   try {
     const response = await axiosInstance.get(`/get-esg-data/${symbol}/`);
+    console.log("API Response:", response.data);
+
     companyData.value = response.data;
     kpiDrilldownData.value = response.data["KPI Drilldown"] || {}; // Fallback to empty object
-    console.log("Company data fetched:", companyData.value);
-  } catch (error) {
-    console.error("Error fetching company data:", error);
+    controversyData.value = response.data["Controversy Data"] || {}; // Fallback to empty object
+    controversyCategories.value = response.data["Controversy Categories"] || []; // Fallback to empty array
+
+    console.log("Controversy Data:", controversyData.value);
+    console.log("Controversy Categories:", controversyCategories.value);
+  } catch (err) {
+    error.value = "Failed to load company data.";
+    console.error("Error fetching company data:", err);
   }
 };
 
@@ -296,6 +297,24 @@ const fetchIndustryBenchmark = async () => {
   }
 };
 
+const fetchAISummary = async () => {
+  try {
+    aiLoading.value = true;
+    const response = await axiosInstance.post("/generate-esg-insight/", { symbol });
+    aiInsight.value = response.data.insight; // Directly use the structured response
+  } catch (error) {
+    console.error("Error fetching AI summary:", error);
+    aiInsight.value = {
+      esgScores: {},
+      controversies: { details: "Unable to fetch controversies.", interpretation: "" },
+      alignment: { strategy: "N/A", strengths: [], risks: [], conclusion: "" },
+      summary: "Unable to generate summary.",
+    };
+  } finally {
+    aiLoading.value = false;
+  }
+};
+
 const askChatGPT = async () => {
   try {
     const response = await axiosInstance.post(`/chatgpt-advisor/`, {
@@ -313,6 +332,7 @@ const askChatGPT = async () => {
 onMounted(async () => {
   try {
     await fetchCompanyData();
+    await fetchAISummary(); // Fetch AI summary after company data
     fetchPeerScores(); // Non-blocking
     fetchLatestNews(); // Non-blocking
     fetchIndustryBenchmark(); // Non-blocking

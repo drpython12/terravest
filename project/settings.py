@@ -23,6 +23,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+OPENAI_API_KEY = "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"
 
 # Application definition
 
@@ -141,4 +142,18 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = True
 
 AUTH_USER_MODEL = 'api.User'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    },
+}
 
