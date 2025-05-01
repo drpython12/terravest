@@ -1,97 +1,117 @@
 <template>
-  <div class="bg-white shadow-lg rounded-2xl p-6 space-y-6">
-    <h2 class="text-lg font-semibold mb-4">AI-Generated ESG Insights</h2>
+  <div class="max-w-4xl mx-auto p-6 bg-white shadow-xl rounded-2xl space-y-6">
+    <h1 class="text-2xl font-semibold text-gray-800">AI-Generated ESG Insight</h1>
 
-    <div v-if="loading" class="h-full w-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-      Generating AI Summary...
+    <!-- Loading -->
+    <div v-if="loading" class="text-center py-4 text-gray-500">
+      <svg
+        class="animate-spin h-5 w-5 text-gray-500 mx-auto mb-2"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <circle
+          class="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          stroke-width="4"
+        ></circle>
+        <path
+          class="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8v8H4z"
+        ></path>
+      </svg>
+      Generating ESG analysis... Please wait.
     </div>
 
-    <div v-else-if="insight" class="space-y-6">
+    <!-- Error -->
+    <div v-if="error" class="bg-red-100 text-red-700 px-4 py-2 rounded-lg">
+      {{ error }}
+    </div>
+
+    <!-- Insight Display -->
+    <div v-if="insight" class="space-y-6 text-gray-800">
+      <!-- Summary -->
+      <section>
+        <h2 class="text-lg font-semibold">📋 Summary</h2>
+        <p>{{ insight.summary || "No summary available." }}</p>
+      </section>
+
       <!-- ESG Scores -->
       <section>
-        <h3 class="text-xl font-bold text-gray-800">ESG Scores</h3>
-        <div class="space-y-4">
-          <div v-for="(score, key) in insight.esgScores" :key="key" class="space-y-2">
-            <div class="flex justify-between">
-              <span class="font-medium text-gray-700">{{ key }}</span>
-              <span class="font-semibold text-gray-900">{{ score.score.toFixed(2) }} / 100</span>
-            </div>
-            <p class="text-sm text-gray-600">{{ score.interpretation }}</p>
-          </div>
-        </div>
+        <h2 class="text-lg font-semibold">📊 ESG Scores</h2>
+        <ul class="space-y-2">
+          <li>
+            <strong>Environmental:</strong> {{ insight.esgScores.Environmental.score }} - 
+            {{ insight.esgScores.Environmental.interpretation }}
+          </li>
+          <li>
+            <strong>Social:</strong> {{ insight.esgScores.Social.score }} - 
+            {{ insight.esgScores.Social.interpretation }}
+          </li>
+          <li>
+            <strong>Governance:</strong> {{ insight.esgScores.Governance.score }} - 
+            {{ insight.esgScores.Governance.interpretation }}
+          </li>
+          <li>
+            <strong>Overall:</strong> {{ insight.esgScores.Overall.score }} - 
+            {{ insight.esgScores.Overall.interpretation }}
+          </li>
+        </ul>
       </section>
 
       <!-- Controversies -->
       <section>
-        <h3 class="text-xl font-bold text-gray-800">Controversies</h3>
-        <p class="text-gray-700">{{ insight.controversies.details }}</p>
-        <p class="text-sm text-gray-600">{{ insight.controversies.interpretation }}</p>
+        <h2 class="text-lg font-semibold">⚠️ Controversies</h2>
+        <p>{{ insight.controversies.details || "No controversies reported." }}</p>
+        <p class="text-gray-600">{{ insight.controversies.interpretation }}</p>
       </section>
 
-      <!-- Alignment with Strategy -->
+      <!-- Alignment with Preferences -->
       <section>
-        <h3 class="text-xl font-bold text-gray-800">Alignment with {{ insight.alignment.strategy }}</h3>
-        <div class="space-y-4">
-          <h4 class="font-semibold text-gray-700">Key Strengths:</h4>
-          <ul class="list-disc pl-6 text-gray-700 space-y-2">
-            <li v-for="point in insight.alignment.strengths" :key="point">{{ point }}</li>
+        <h2 class="text-lg font-semibold">🎯 Alignment with Preferences</h2>
+        <p><strong>Strategy:</strong> {{ insight.alignment.strategy }}</p>
+        <div>
+          <strong>Strengths:</strong>
+          <ul class="list-disc ml-6">
+            <li v-for="strength in insight.alignment.strengths" :key="strength">
+              {{ strength }}
+            </li>
           </ul>
-          <h4 class="font-semibold text-gray-700">Potential Risks:</h4>
-          <ul class="list-disc pl-6 text-gray-700 space-y-2">
-            <li v-for="point in insight.alignment.risks" :key="point">{{ point }}</li>
-          </ul>
-          <h4 class="font-semibold text-gray-700">Conclusion:</h4>
-          <p class="text-gray-700">{{ insight.alignment.conclusion }}</p>
         </div>
+        <div>
+          <strong>Risks:</strong>
+          <ul class="list-disc ml-6">
+            <li v-for="risk in insight.alignment.risks" :key="risk">
+              {{ risk }}
+            </li>
+          </ul>
+        </div>
+        <p><strong>Conclusion:</strong> {{ insight.alignment.conclusion }}</p>
       </section>
-
-      <!-- Summary -->
-      <section>
-        <h3 class="text-xl font-bold text-gray-800">Summary</h3>
-        <p class="text-gray-700">{{ insight.summary }}</p>
-      </section>
-    </div>
-
-    <div v-else class="h-full w-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-      AI Summary not available.
     </div>
   </div>
 </template>
 
-<script setup>
-import { defineProps } from "vue";
-
-defineProps({
-  insight: {
-    type: Object,
-    default: () => ({
-      esgScores: {},
-      controversies: { details: "", interpretation: "" },
-      alignment: { strategy: "", strengths: [], risks: [], conclusion: "" },
-      summary: "",
-    }),
+<script>
+export default {
+  name: "AIInsight",
+  props: {
+    insight: {
+      type: Object,
+      default: null,
+    },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+    error: {
+      type: String,
+      default: null,
+    },
   },
-  loading: {
-    type: Boolean,
-    default: true,
-  },
-});
+};
 </script>
-
-<style scoped>
-h2 {
-  color: #374151; /* Tailwind gray-800 */
-}
-
-h3 {
-  color: #1f2937; /* Tailwind gray-900 */
-}
-
-h4 {
-  color: #374151; /* Tailwind gray-800 */
-}
-
-p {
-  color: #4b5563; /* Tailwind gray-700 */
-}
-</style>

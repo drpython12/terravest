@@ -1,7 +1,8 @@
 from . import database
 import os
-
 from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -19,11 +20,11 @@ SECRET_KEY = os.getenv(
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG') == 'True'
+
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 
 ALLOWED_HOSTS = ['*']
-
-OPENAI_API_KEY = "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"
 
 # Application definition
 

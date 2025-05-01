@@ -21,6 +21,11 @@ from rest_framework.response import Response
 from django.conf import settings
 from openai import OpenAI
 from rest_framework.parsers import JSONParser
+from pydantic import BaseModel, Field, conlist, confloat
+from typing import List
+import copy
+from typing import Annotated
+import uuid
 
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
@@ -829,18 +834,6 @@ def get_company_esg_data(request, ticker):
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
-def generate_ai_summary(prompt):
-    """Generate an AI summary using OpenAI."""
-    try:
-        response = client.completions.create(engine="text-davinci-003",
-        prompt=prompt,
-        max_tokens=150,
-        temperature=0.7)
-        return response.choices[0].text.strip()
-    except Exception as e:
-        logger.error(f"Error generating AI summary: {e}")
-        return "Unable to generate summary at this time."
-
 
 def calculate_esg_contribution(company, portfolio_weight):
     """Calculate ESG contribution to investment strategy."""
@@ -944,151 +937,144 @@ def fetch_esg_peer_scores(request, symbol):
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
-def build_prompt(company_name, strategy, esg_data, controversies, detail_level):
-    """Build the prompt for ChatGPT."""
-    prompt = f"""
-    You are an ESG investing expert helping users evaluate companies based on ESG scores, controversies, and investment strategies.
 
-    The company in question is:
-    - Name: {company_name}
+class ScoreInterpretation(BaseModel):
+    score: float # Validation only; doesn't interfere with OpenAI schema
+    interpretation: str
 
-    ESG Data:
-    - Environmental: {esg_data.get('environmental', 'N/A')}
-    - Social: {esg_data.get('social', 'N/A')}
-    - Governance: {esg_data.get('governance', 'N/A')}
-    - Overall ESG Score: {esg_data.get('esg', 'N/A')}
 
-    Controversies:
-    {controversies if controversies else "No controversies reported."}
+class ESGScores(BaseModel):
+    Environmental: ScoreInterpretation
+    Social: ScoreInterpretation
+    Governance: ScoreInterpretation
+    Overall: ScoreInterpretation
 
-    User's Investment Strategy:
-    - {strategy}
 
-    Provide a {detail_level} insight into how this company aligns with the user's preferences.
-    """
-    return prompt
+class Controversies(BaseModel):
+    details: str
+    interpretation: str
+
+
+class Alignment(BaseModel):
+    strategy: str
+    strengths: conlist(str)
+    risks: List[str]
+    conclusion: str
+
+
+class ESGInsight(BaseModel):
+    esgScores: ESGScores
+    controversies: Controversies
+    alignment: Alignment
+    summary: str
+
 
 @api_view(["POST"])
-def generate_esg_insight(request):
+@login_required
+@csrf_exempt
+def generate_ai_insight(request):
     """Generate AI-based ESG insight for a company."""
-    logger.info("generate_esg_insight endpoint called.")
-
-    if request.method != "POST":
-        logger.error("Invalid request method.")
-        return JsonResponse({"error": "Invalid request method."}, status=405)
+    logger.info("generate_ai_insight endpoint called.")
 
     try:
-        # Parse the request body
-        logger.info("Parsing request body...")
-        data = request.data  # Use DRF's request.data
+        data = request.data
         symbol = data.get("symbol")
-
-        # Validate the symbol
-        if not isinstance(symbol, str) or not symbol.strip():
-            logger.error(f"Invalid symbol received: {symbol}")
-            return JsonResponse({"error": "Invalid symbol. It must be a non-empty string."}, status=400)
-
         user = request.user
-        logger.info(f"Request body parsed. Symbol: {symbol}, User: {user}")
 
-        # Fetch company data
-        logger.info("Fetching company data...")
-        company = ESGCompany.objects.filter(ticker=symbol).first()
-        if not company:
-            logger.error(f"Company not found for symbol: {symbol}")
-            return JsonResponse({"error": "Company not found."}, status=404)
-        logger.info(f"Company found: {company.name} ({company.ticker})")
+        if not symbol or not isinstance(symbol, str):
+            return JsonResponse({"error": "Invalid symbol."}, status=400)
 
-        # Fetch ESG metrics
-        logger.info("Fetching ESG metrics...")
-        latest_year = ESGMetric.objects.filter(company=company).aggregate(latest_year=Max("year"))["latest_year"]
-        logger.info(f"Latest year for ESG metrics: {latest_year}")
-        metrics = ESGMetric.objects.filter(company=company, year=latest_year)
-        esg_data = {
-            "environmental": metrics.filter(fieldname="EnvironmentPillarScore").first().valuescore if metrics.filter(fieldname="EnvironmentPillarScore").exists() else 0,
-            "social": metrics.filter(fieldname="SocialPillarScore").first().valuescore if metrics.filter(fieldname="SocialPillarScore").exists() else 0,
-            "governance": metrics.filter(fieldname="GovernancePillarScore").first().valuescore if metrics.filter(fieldname="GovernancePillarScore").exists() else 0,
-            "esg": metrics.filter(fieldname="ESGScore").first().valuescore if metrics.filter(fieldname="ESGScore").exists() else 0,
-        }
-        logger.info(f"ESG data fetched: {esg_data}")
+        # Generate a unique task ID
+        task_id = str(uuid.uuid4())
 
-        # Fetch user preferences
-        logger.info("Fetching user preferences...")
-        preferences = UserPreferences.objects.filter(user=user).first()
-        if not preferences:
-            logger.error(f"User preferences not found for user: {user}")
-            return JsonResponse({"error": "User preferences not found."}, status=404)
-        logger.info(f"User preferences found: {preferences.investment_strategy}")
+        # Check if the result is already cached
+        cached_result = cache.get(f"ai_insight_{symbol}")
+        if cached_result:
+            return JsonResponse({"status": "completed", "result": cached_result}, status=200)
 
-        # Build the prompt
-        logger.info("Building the prompt...")
-        prompt = {
-            "model": "gpt-4.1-mini",
-            "messages": [
-                {"role": "system", "content": "You are an ESG investing expert helping users evaluate companies based on ESG scores, controversies, and investment strategies."},
-                {"role": "user", "content": f"""
-                    Analyze the ESG performance of {company.name} based on the provided ESG data and the user's investment strategy: {preferences.investment_strategy}.
-                    Provide a structured JSON response in the following format:
+        # Store the task in the cache with a "processing" status
+        cache.set(f"ai_insight_status_{task_id}", {"status": "processing"}, timeout=300)
 
-                    {{
-                        "esgScores": {{
-                            "Environmental": {{
-                                "score": <score>,
-                                "interpretation": "<interpretation>"
-                            }},
-                            "Social": {{
-                                "score": <score>,
-                                "interpretation": "<interpretation>"
-                            }},
-                            "Governance": {{
-                                "score": <score>,
-                                "interpretation": "<interpretation>"
-                            }},
-                            "Overall": {{
-                                "score": <score>,
-                                "interpretation": "<interpretation>"
-                            }}
-                        }},
-                        "controversies": {{
-                            "details": "<details>",
-                            "interpretation": "<interpretation>"
-                        }},
-                        "alignment": {{
-                            "strategy": "{preferences.investment_strategy}",
-                            "strengths": ["<strength1>", "<strength2>", ...],
-                            "risks": ["<risk1>", "<risk2>", ...],
-                            "conclusion": "<conclusion>"
-                        }},
-                        "summary": "<summary>"
-                    }}
+        # Simulate a long-running task (e.g., calling OpenAI API)
+        # This should ideally be done asynchronously using Celery or similar
+        def process_task():
+            try:
+                # Fetch ESGCompany
+                company = ESGCompany.objects.filter(ticker=symbol).first()
+                if not company:
+                    cache.set(f"ai_insight_status_{task_id}", {"status": "error", "message": "Company not found"}, timeout=300)
+                    return
 
-                    Ensure the response is valid JSON and adheres to this structure. Avoid any additional text outside the JSON object.
-                """}
-            ],
-            "temperature": 0.7,
-            "max_tokens": 1000
-        }
-        logger.info("Prompt built successfully.")
+                # Fetch ESG metrics
+                latest_year = ESGMetric.objects.filter(company=company).aggregate(latest_year=Max("year"))["latest_year"]
+                metrics = ESGMetric.objects.filter(company=company, year=latest_year)
+                esg_data = {
+                    "Environmental": metrics.filter(fieldname="EnvironmentPillarScore").first().valuescore or 0,
+                    "Social": metrics.filter(fieldname="SocialPillarScore").first().valuescore or 0,
+                    "Governance": metrics.filter(fieldname="GovernancePillarScore").first().valuescore or 0,
+                    "Overall": metrics.filter(fieldname="ESGScore").first().valuescore or 0,
+                }
 
-        # Call OpenAI API
-        logger.info("Calling OpenAI API...")
-        response = client.chat.completions.create(**prompt)
-        logger.info("OpenAI API call successful.")
+                # Fetch user preferences
+                preferences = UserPreferences.objects.filter(user=user).first()
+                if not preferences:
+                    cache.set(f"ai_insight_status_{task_id}", {"status": "error", "message": "User preferences not found"}, timeout=300)
+                    return
 
-        # Parse the response
-        result = response.choices[0].message.content
-        try:
-            structured_response = json.loads(result)  # Ensure the response is valid JSON
-        except json.JSONDecodeError:
-            logger.error("Invalid JSON format in AI response.")
-            return JsonResponse({"error": "Invalid JSON format in AI response."}, status=500)
+                # Construct and send OpenAI structured call
+                response = client.responses.parse(
+                    model="gpt-4o-mini",
+                    input=[
+                        {
+                            "role": "system",
+                            "content": "You are an ESG investing expert helping users evaluate companies based on ESG scores, controversies, and investment strategies."
+                        },
+                        {
+                            "role": "user",
+                            "content": (
+                                f"Analyze the ESG performance of {company.name} based on the following ESG scores:\n"
+                                f"Environmental: {esg_data['Environmental']}, "
+                                f"Social: {esg_data['Social']}, "
+                                f"Governance: {esg_data['Governance']}, "
+                                f"Overall: {esg_data['Overall']}.\n"
+                                f"The user’s investment strategy is: {preferences.investment_strategy}.\n"
+                                f"Return a structured JSON response."
+                            )
+                        }
+                    ],
+                    text_format=ESGInsight,
+                )
 
-        logger.info("AI response parsed successfully.")
-        return JsonResponse({"insight": structured_response}, status=200)
+                # Parse the response into the ESGInsight model
+                event: ESGInsight = response.output_parsed
 
-    except json.JSONDecodeError:
-        logger.error("Invalid JSON format in request body.")
-        return JsonResponse({"error": "Invalid JSON format."}, status=400)
+                # Serialize the ESGInsight object into a dictionary
+                serialized_event = event.dict()
+
+                # Cache the result
+                cache.set(f"ai_insight_{symbol}", serialized_event, timeout=300)
+                cache.set(f"ai_insight_status_{task_id}", {"status": "completed"}, timeout=300)
+
+            except Exception as e:
+                logger.error(f"Error generating ESG insight: {e}")
+                cache.set(f"ai_insight_status_{task_id}", {"status": "error", "message": str(e)}, timeout=300)
+
+        # Simulate asynchronous processing (replace with Celery in production)
+        from threading import Thread
+        Thread(target=process_task).start()
+
+        return JsonResponse({"status": "processing", "task_id": task_id}, status=202)
+
     except Exception as e:
-        logger.error(f"An error occurred: {str(e)}")
-        return JsonResponse({"error": str(e)}, status=500)
+        logger.error(f"Error generating ESG insight: {e}")
+        return JsonResponse({"error": "An error occurred while generating ESG insight."}, status=500)
+
+
+@api_view(["GET"])
+@login_required
+def check_ai_insight_status(request, task_id):
+    """Check the status of the AI insight generation."""
+    status = cache.get(f"ai_insight_status_{task_id}")
+    if not status:
+        return JsonResponse({"status": "not_found"}, status=404)
+    return JsonResponse(status, status=200)

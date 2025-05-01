@@ -188,7 +188,7 @@
     </div>
 
     <!-- AI Summary -->
-    <AI :insight="aiInsight" :loading="aiLoading" />
+    <AI :insight="aiInsight" :loading="aiLoading" :error="aiError" />
 
     <!-- ChatGPT Q&A -->
     <div class="bg-white shadow-lg rounded-2xl p-6">
@@ -246,8 +246,9 @@ const chatResponse = ref(""); // Default empty string for ChatGPT response
 const controversyData = ref({}); // Default empty object for Controversy Data
 const controversyCategories = ref([]); // Default empty array
 const error = ref(null);
-const aiInsight = ref(""); // AI-generated summary
+const aiInsight = ref(null); // AI-generated summary
 const aiLoading = ref(true); // Loading state for AI summary
+const aiError = ref(null); // Error state for AI summary
 
 const fetchCompanyData = async () => {
   try {
@@ -301,15 +302,10 @@ const fetchAISummary = async () => {
   try {
     aiLoading.value = true;
     const response = await axiosInstance.post("/generate-esg-insight/", { symbol });
-    aiInsight.value = response.data.insight; // Directly use the structured response
+    aiInsight.value = response.data.result; // Use the structured response
   } catch (error) {
     console.error("Error fetching AI summary:", error);
-    aiInsight.value = {
-      esgScores: {},
-      controversies: { details: "Unable to fetch controversies.", interpretation: "" },
-      alignment: { strategy: "N/A", strengths: [], risks: [], conclusion: "" },
-      summary: "Unable to generate summary.",
-    };
+    aiError.value = "Unable to generate ESG insight.";
   } finally {
     aiLoading.value = false;
   }
