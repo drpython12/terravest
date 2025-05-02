@@ -160,13 +160,15 @@
           </div>
         </div>
         <div v-else-if="activeTab === 'Latest News'">
-          <ESGNewsFeed :newsList="latestNews" />
+          <NewsFeed :newsList="latestNews" :loading="aiLoading || latestNews.length === 0" />
         </div>
       </div>
     </div>
 
     <!-- AI Summary -->
-    <AI :insight="aiInsight" :loading="aiLoading" :error="aiError" />
+    <div class="bg-white shadow-lg rounded-2xl p-6 my-8 max-w-7xl mx-auto">
+      <AI :insight="aiInsight" :loading="aiLoading" :error="aiError" />
+    </div>
 
     <!-- ChatGPT Q&A -->
     <div class="bg-white shadow-lg rounded-2xl p-6">
@@ -204,7 +206,7 @@ import CompanyProfile from "@/components/CompanyProfile.vue";
 import FinancialDetails from "@/components/FinancialDetails.vue";
 import Controversies from "@/components/Controversies.vue";
 import AI from "@/components/AI.vue";
-import ESGNewsFeed from "@/components/ESGNewsFeed.vue";
+import NewsFeed from "@/components/NewsFeed.vue";
 import { Chart, registerables } from "chart.js";
 
 Chart.register(...registerables);

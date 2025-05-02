@@ -60,7 +60,7 @@
     <!-- ESG Market News -->
     <div class="bg-white shadow-lg rounded-2xl p-6 hover:shadow-xl transition">
       <h2 class="text-lg font-semibold text-gray-700 mb-4">ESG Market News</h2>
-      <ESGNewsFeed />
+      <NewsFeed />
     </div>
 
     <!-- Investment Suggestions -->
@@ -76,7 +76,7 @@ import { ref, onMounted } from "vue";
 import { useAuthStore } from "@/store/useAuthStore";
 import ESGPieChart from "@/components/ESGPieChart.vue";
 import ESGLineChart from "@/components/ESGLineChart.vue";
-import ESGNewsFeed from "@/components/ESGNewsFeed.vue";
+import NewsFeed from "@/components/NewsFeed.vue";
 import InvestmentSuggestions from "@/components/InvestmentSuggestions.vue";
 import TopPortfolioHoldings from "@/components/TopPortfolioHoldings.vue";
 import axios from "axios";

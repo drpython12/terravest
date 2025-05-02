@@ -756,7 +756,7 @@ def get_company_esg_data(request, ticker):
         }
 
         # Fetch controversy data and prepare controversy categories
-        controversies = ESGMetric.objects.filter(company=company, fieldname__icontains="Controversies").order_by("year")
+        controversies = ESGMetric.objects.filter(company=company, fieldname__icontains="ControversiesCount").order_by("year")
         controversy_data = {}
         controversy_categories = set()  # Use a set to avoid duplicates
         for metric in controversies:
@@ -1012,7 +1012,8 @@ def generate_ai_insight(request):
                     return
 
                 response = client.responses.parse(
-                    model="gpt-4o-mini",
+                    model="gpt-4.1-mini",
+                    tools=[{"type": "web_search_preview"}],
                     input=[
                         {
                             "role": "system",

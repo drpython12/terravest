@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-4xl mx-auto p-6 bg-white shadow-xl rounded-2xl space-y-6">
+  <div class="w-full p-6 bg-white shadow-xl rounded-2xl space-y-6">
     <h1 class="text-2xl font-semibold text-gray-800">AI ESG Report</h1>
 
     <!-- Loading -->

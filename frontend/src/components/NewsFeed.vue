@@ -1,7 +1,31 @@
 <template>
   <div class="news-container">
-    <h3 class="text-lg font-semibold text-gray-800 mb-4">Latest ESG News</h3>
-    <ul v-if="newsList.length">
+    <!-- Loading Spinner -->
+    <div v-if="loading" class="text-center py-4 text-gray-500">
+      <svg
+        class="animate-spin h-5 w-5 text-gray-500 mx-auto mb-2"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <circle
+          class="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          stroke-width="4"
+        ></circle>
+        <path
+          class="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8v8H4z"
+        ></path>
+      </svg>
+      Loading latest news...
+    </div>
+    <!-- News List -->
+    <ul v-else-if="newsList.length">
       <li v-for="(news, index) in newsList" :key="index" class="mb-4">
         <a :href="news.url" target="_blank" class="text-blue-600 hover:underline">
           {{ news.title }}
@@ -11,7 +35,7 @@
         </p>
       </li>
     </ul>
-    <p v-else class="text-gray-500">No ESG news available.</p>
+    <p v-else class="text-gray-500">No news available.</p>
   </div>
 </template>
 
@@ -20,6 +44,10 @@ defineProps({
   newsList: {
     type: Array,
     required: true,
+  },
+  loading: {
+    type: Boolean,
+    default: false,
   },
 });
 </script>
