@@ -11,29 +11,33 @@ from django.core.validators import validate_email
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.csrf import csrf_exempt
-from django.db.models import Avg, Max, Min, Sum, F, Case, When, FloatField
-from django.core.paginator import Paginator
+from django.db.models import Avg, Max, Sum, F, Case, When, FloatField
 from .models import PortfolioStock, User, UserPreferences, ESGCompany, ESGMetric
 from django.core.cache import cache
 import logging
 from rest_framework.decorators import api_view
-from rest_framework.response import Response
 from django.conf import settings
 from openai import OpenAI
-from rest_framework.parsers import JSONParser
-from pydantic import BaseModel, Field, conlist, confloat
+from pydantic import BaseModel, conlist
 from typing import List
-import copy
-from typing import Annotated
 import uuid
+from django.db.models import Avg
+from decimal import Decimal
+from openai import OpenAI
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+import json
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
+from threading import Thread
 
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 
 logger = logging.getLogger(__name__)
 
-ALPHA_VANTAGE_API_KEY = 'PNPAH7B7UT76I8OI'
-  # Store securely in `.env`
+
+ALPHA_VANTAGE_API_KEY = settings.ALPHA_VANTAGE_API_KEY
 
 
 def json_response(data, status=200):
@@ -375,7 +379,7 @@ def search_company(request):
                 "currency": item["8. currency"],
                 "matchScore": float(item["9. matchScore"])
             }
-            for item in data["bestMatches"]
+            for item in data["bestMatches"] if item["4. region"] == "United States"
         ]
         results.sort(key=lambda x: x["matchScore"], reverse=True)
 
@@ -453,43 +457,6 @@ def fetch_esg_data_for_companies(company_symbols):
     return esg_data
 
 
-def get_company_esg_data(company):
-    """Fetch ESG data for a single company."""
-    latest_year = get_latest_year_for_company(company)
-    metrics = ESGMetric.objects.filter(company=company, year=latest_year)
-
-    return {
-        "Governance": {
-            "color": "#2F855A",
-            "score": get_metric_score(metrics, "GovernancePillarScore"),
-            "details": {
-                "Management": get_metric_score(metrics, "ESGManagementScore"),
-                "Shareholders": get_metric_score(metrics, "ESGShareholdersScore"),
-                "CSR Strategy": get_metric_score(metrics, "ESGCsrStrategyScore"),
-            },
-        },
-        "Environment": {
-            "color": "#6B46C1",
-            "score": get_metric_score(metrics, "EnvironmentPillarScore"),
-            "details": {
-                "Emissions": get_metric_score(metrics, "ESGEmissionsScore"),
-                "Resource Use": get_metric_score(metrics, "ESGResourceUseScore"),
-                "Innovation": get_metric_score(metrics, "ESGInnovationScore"),
-            },
-        },
-        "Social": {
-            "color": "#D69E2E",
-            "score": get_metric_score(metrics, "SocialPillarScore"),
-            "details": {
-                "Human Rights": get_metric_score(metrics, "ESGHumanRightsScore"),
-                "Product Responsibility": get_metric_score(metrics, "ESGProductResponsibilityScore"),
-                "Workforce": get_metric_score(metrics, "ESGWorkforceScore"),
-                "Community": get_metric_score(metrics, "ESGCommunityScore"),
-            },
-        },
-    }
-
-
 def get_latest_year_for_company(company):
     """Get the latest year for which ESG metrics are available for a company."""
     return ESGMetric.objects.filter(company=company).aggregate(latest_year=Max("year"))["latest_year"]
@@ -500,8 +467,6 @@ def get_metric_score(metrics, fieldname):
     metric = metrics.filter(fieldname=fieldname).first()
     return round(metric.valuescore * 100) if metric else 0
 
-
-from decimal import Decimal
 
 def get_weighted_esg_trends(portfolio_stocks, stock_values, total_portfolio_value):
     """Calculate weighted ESG trends for the portfolio."""
@@ -674,15 +639,6 @@ def get_top_holdings(portfolio_stocks):
     ).values('company_name', 'symbol', 'shares', 'amount_invested')
 
 
-from openai import OpenAI
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-import json
-from django.contrib.auth.decorators import login_required
-from django.utils.decorators import method_decorator
-
-# Set your OpenAI API key
-
 @csrf_exempt
 @login_required
 def chatgpt_advisor(request):
@@ -741,8 +697,6 @@ def chatgpt_advisor(request):
 
     return JsonResponse({"error": "Invalid request method."}, status=405)
 
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
 
 @csrf_exempt
 def get_company_esg_data(request, ticker):
@@ -844,34 +798,86 @@ def calculate_esg_contribution(company, portfolio_weight):
     }
 
 
+class Articles(BaseModel):
+    title: str
+    description: str
+    url: str
+    source: str
+    date: str
+
+class NewsFormat(BaseModel):
+    articles: conlist(Articles)
+
 @csrf_exempt
 @login_required
 def fetch_esg_news(request):
     """
-    Fetch ESG-related news from the Yahoo Finance API.
+    Fetch ESG-related news for a specific company using OpenAI model.
     """
     try:
-        # Set up the connection to the Yahoo Finance API
-        conn = http.client.HTTPSConnection("yahoo-finance-real-time1.p.rapidapi.com")
+        company_name = request.GET.get("company_name")
+        if not company_name or not isinstance(company_name, str):
+            return JsonResponse({"error": "Invalid symbol."}, status=400)
+        task_id = str(uuid.uuid4())
 
-        headers = {
-            'x-rapidapi-key': "c4cf9f510cmsh80ee50ea6a7d2b3p171c27jsnab5350889c90",
-            'x-rapidapi-host': "yahoo-finance-real-time1.p.rapidapi.com"
-        }
+        def process_task():
+            try:
+                cached_result = cache.get(f"news_{company_name}")
+                if cached_result:
+                    cache.set(f"news_status_{task_id}", {"status": "completed", "company_name": company_name}, timeout=300)
+                    return
 
-        # Make the request to fetch ESG-related news
-        conn.request("GET", "/search?query=Nvidia&region=US", headers=headers)
-        res = conn.getresponse()
-        data = res.read()
+                cache.set(f"news_status_{task_id}", {"status": "processing", "company_name": company_name}, timeout=300)
+                response = client.responses.parse(
+                    model="gpt-4.1",
+                    tools=[{"type": "web_search_preview"}],
+                    input=[
+                        {
+                            "role": "system",
+                            "content": "You are an ESG and financial news expert. Your task is to find the most relevant and recent ESG and financial news articles for a given company. Limit the results to 5 articles, ensuring they are as recent as possible and highly relevant to the company's ESG and financial performance."
+                        },
+                        {
+                            "role": "user",
+                            "content": (
+                                f"Find the news articles for {company_name}.\n"
+                                f"Return a structured JSON response."
+                            )
+                        }
+                    ],
+                    text_format=NewsFormat,
+                )
+                event: NewsFormat = response.output_parsed
+                serialized_event = event.dict()
+                cache.set(f"news_{company_name}", serialized_event, timeout=300)
+                cache.set(f"news_status_{task_id}", {"status": "completed", "company_name": company_name}, timeout=300)
+            except Exception as e:
+                logger.error(f"Error generating ESG news: {e}")
+                cache.set(f"news_status_{task_id}", {"status": "error", "message": str(e)}, timeout=300)
 
-        # Decode the response and return it as JSON
-        return JsonResponse(data.decode("utf-8"), safe=False)
+        Thread(target=process_task).start()
+        return JsonResponse({"status": "processing", "task_id": task_id}, status=202)
 
     except Exception as e:
-        # Handle any errors that occur during the request
-        return JsonResponse({"error": str(e)}, status=500)
+        logger.error(f"Error generating ESG news: {e}")
+        return JsonResponse({"error": "An error occurred while generating ESG news."}, status=500)
 
-from django.db.models import Avg
+
+@api_view(["GET"])
+@login_required
+def check_esg_news_status(request, task_id):
+    """Check the status of the ESG news fetching task."""
+    status = cache.get(f"news_status_{task_id}")
+    if not status:
+        return JsonResponse({"status": "not_found"}, status=404)
+    if status.get("status") == "completed":
+        # Return the cached news result
+        company_name = status.get("company_name")
+        result = cache.get(f"news_{company_name}")
+        return JsonResponse({"status": "completed", "result": result}, status=200)
+    if status.get("status") == "error":
+        return JsonResponse(status, status=500)
+    return JsonResponse(status, status=200)
+
 
 @csrf_exempt
 @login_required
@@ -939,8 +945,8 @@ def fetch_esg_peer_scores(request, symbol):
 
 
 class ScoreInterpretation(BaseModel):
-    score: float # Validation only; doesn't interfere with OpenAI schema
     interpretation: str
+    explanation: str
 
 
 class ESGScores(BaseModel):
@@ -973,71 +979,58 @@ class ESGInsight(BaseModel):
 @login_required
 @csrf_exempt
 def generate_ai_insight(request):
-    """Generate AI-based ESG insight for a company."""
     logger.info("generate_ai_insight endpoint called.")
-
+    logger.info(f"Request data: {request.data}")
     try:
         data = request.data
-        symbol = data.get("symbol")
         user = request.user
+        company_data = data.get("companyData")
+        symbol = company_data["Symbol"].strip().upper()
 
         if not symbol or not isinstance(symbol, str):
             return JsonResponse({"error": "Invalid symbol."}, status=400)
+        
+        if not company_data or not isinstance(company_data, dict):
+            return JsonResponse({"error": "Invalid companyData."}, status=400)
 
-        # Generate a unique task ID
         task_id = str(uuid.uuid4())
 
-        # Check if the result is already cached
         cached_result = cache.get(f"ai_insight_{symbol}")
         if cached_result:
             return JsonResponse({"status": "completed", "result": cached_result}, status=200)
 
-        # Store the task in the cache with a "processing" status
-        cache.set(f"ai_insight_status_{task_id}", {"status": "processing"}, timeout=300)
+        # Store the task in the cache with a "processing" status and symbol
+        cache.set(f"ai_insight_status_{task_id}", {"status": "processing", "symbol": symbol}, timeout=300)
 
-        # Simulate a long-running task (e.g., calling OpenAI API)
-        # This should ideally be done asynchronously using Celery or similar
         def process_task():
             try:
-                # Fetch ESGCompany
-                company = ESGCompany.objects.filter(ticker=symbol).first()
-                if not company:
-                    cache.set(f"ai_insight_status_{task_id}", {"status": "error", "message": "Company not found"}, timeout=300)
-                    return
-
-                # Fetch ESG metrics
-                latest_year = ESGMetric.objects.filter(company=company).aggregate(latest_year=Max("year"))["latest_year"]
-                metrics = ESGMetric.objects.filter(company=company, year=latest_year)
-                esg_data = {
-                    "Environmental": metrics.filter(fieldname="EnvironmentPillarScore").first().valuescore or 0,
-                    "Social": metrics.filter(fieldname="SocialPillarScore").first().valuescore or 0,
-                    "Governance": metrics.filter(fieldname="GovernancePillarScore").first().valuescore or 0,
-                    "Overall": metrics.filter(fieldname="ESGScore").first().valuescore or 0,
-                }
-
-                # Fetch user preferences
                 preferences = UserPreferences.objects.filter(user=user).first()
+                if preferences:
+                    preferences = preferences.to_dict()
                 if not preferences:
                     cache.set(f"ai_insight_status_{task_id}", {"status": "error", "message": "User preferences not found"}, timeout=300)
                     return
 
-                # Construct and send OpenAI structured call
                 response = client.responses.parse(
                     model="gpt-4o-mini",
                     input=[
                         {
                             "role": "system",
-                            "content": "You are an ESG investing expert helping users evaluate companies based on ESG scores, controversies, and investment strategies."
+                            "content": "You are an ESG investing expert, generating analysis reports for users evaluating companies based on data and information available about the company, and the user's selected preferences."
                         },
                         {
                             "role": "user",
                             "content": (
-                                f"Analyze the ESG performance of {company.name} based on the following ESG scores:\n"
-                                f"Environmental: {esg_data['Environmental']}, "
-                                f"Social: {esg_data['Social']}, "
-                                f"Governance: {esg_data['Governance']}, "
-                                f"Overall: {esg_data['Overall']}.\n"
-                                f"The user’s investment strategy is: {preferences.investment_strategy}.\n"
+                                f"Write an ESG analysis report about {company_data['Company Name']}. Use the given data and information about the company and user investment preferences.\n"
+                                f"Company Data:\n"
+                                f"{json.dumps(company_data, indent=2)}\n"
+                                f"The user’s portfolio preferences are:\n"
+                                f"The user’s investment strategy is: {preferences['investment_strategy']}.\n"
+                                f"The user’s risk level is: {preferences['risk_level']}.\n"
+                                f"The user’s ESG factor priorities are: {preferences['esg_factors']}.\n"
+                                f"The user’s industry preferences are: {preferences['industry_preferences']}.\n"
+                                f"The user’s industry exclusions are: {preferences['exclusions']}.\n"
+                                f"The user’s report preference is: {preferences['transparency_level']}.\n"
                                 f"Return a structured JSON response."
                             )
                         }
@@ -1045,24 +1038,16 @@ def generate_ai_insight(request):
                     text_format=ESGInsight,
                 )
 
-                # Parse the response into the ESGInsight model
                 event: ESGInsight = response.output_parsed
-
-                # Serialize the ESGInsight object into a dictionary
                 serialized_event = event.dict()
-
-                # Cache the result
                 cache.set(f"ai_insight_{symbol}", serialized_event, timeout=300)
-                cache.set(f"ai_insight_status_{task_id}", {"status": "completed"}, timeout=300)
+                cache.set(f"ai_insight_status_{task_id}", {"status": "completed", "symbol": symbol}, timeout=300)
 
             except Exception as e:
                 logger.error(f"Error generating ESG insight: {e}")
                 cache.set(f"ai_insight_status_{task_id}", {"status": "error", "message": str(e)}, timeout=300)
 
-        # Simulate asynchronous processing (replace with Celery in production)
-        from threading import Thread
         Thread(target=process_task).start()
-
         return JsonResponse({"status": "processing", "task_id": task_id}, status=202)
 
     except Exception as e:
@@ -1077,4 +1062,40 @@ def check_ai_insight_status(request, task_id):
     status = cache.get(f"ai_insight_status_{task_id}")
     if not status:
         return JsonResponse({"status": "not_found"}, status=404)
+    if status.get("status") == "completed":
+        symbol = status.get("symbol")
+        result = cache.get(f"ai_insight_{symbol}")
+        return JsonResponse({"status": "completed", "result": result}, status=200)
+    if status.get("status") == "error":
+        return JsonResponse(status, status=500)
     return JsonResponse(status, status=200)
+
+
+def is_market_open():
+    """Check if the market is open using Alpha Vantage API."""
+    cache_key = "market_status"
+    cached_status = cache.get(cache_key)
+
+    if cached_status:
+        return cached_status == "open"
+
+    try:
+        url = f'https://www.alphavantage.co/query?function=MARKET_STATUS&apikey={ALPHA_VANTAGE_API_KEY}'
+        response = requests.get(url)
+        data = response.json()
+
+        # Check the status of the US market (or other relevant markets)
+        us_market = next(
+            (market for market in data.get("markets", []) if market["region"] == "United States"),
+            None
+        )
+        if us_market:
+            current_status = us_market["current_status"]
+            cache.set(cache_key, current_status, timeout=60 * 15)  # Cache for 15 minutes
+            return current_status == "open"
+
+    except Exception as e:
+        # Log the error and assume the market is closed
+        print(f"Error checking market status: {e}")
+
+    return False

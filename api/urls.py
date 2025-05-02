@@ -18,7 +18,9 @@ from .views import (
     get_company_esg_data,
     fetch_esg_news,
     fetch_esg_peer_scores,
-    generate_ai_insight
+    generate_ai_insight,
+    check_esg_news_status,
+    check_ai_insight_status
 )
 
 urlpatterns = [
@@ -41,4 +43,6 @@ urlpatterns = [
     path('api/fetch-esg-news/', fetch_esg_news, name='fetch_esg_news'),
     path('api/fetch-esg-peer-scores/<str:symbol>/', fetch_esg_peer_scores, name='fetch_esg_peer_scores'),
     path('api/generate-esg-insight/', generate_ai_insight, name='generate_ai_insight'),
+    path('api/check-esg-news-status/<str:task_id>/', check_esg_news_status, name='check_esg_news_status'),
+    path('api/check-ai-insight-status/<str:task_id>/', check_ai_insight_status, name='check_ai_insight_status'),
 ]

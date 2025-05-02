@@ -160,29 +160,7 @@
           </div>
         </div>
         <div v-else-if="activeTab === 'Latest News'">
-          <section>
-            <h2 class="text-lg font-semibold mb-4">Latest News</h2>
-            <ul v-if="latestNews.length" class="space-y-4">
-              <li
-                v-for="news in latestNews"
-                :key="news.id"
-                class="border-b pb-4"
-              >
-                <h3 class="font-semibold text-gray-800">{{ news.title }}</h3>
-                <p class="text-gray-600">{{ news.summary }}</p>
-                <a
-                  :href="news.url"
-                  target="_blank"
-                  class="text-blue-600 hover:underline"
-                >
-                  Read more
-                </a>
-              </li>
-            </ul>
-            <div v-else class="h-40 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-              Latest News not available.
-            </div>
-          </section>
+          <ESGNewsFeed :newsList="latestNews" />
         </div>
       </div>
     </div>
@@ -226,6 +204,7 @@ import CompanyProfile from "@/components/CompanyProfile.vue";
 import FinancialDetails from "@/components/FinancialDetails.vue";
 import Controversies from "@/components/Controversies.vue";
 import AI from "@/components/AI.vue";
+import ESGNewsFeed from "@/components/ESGNewsFeed.vue";
 import { Chart, registerables } from "chart.js";
 
 Chart.register(...registerables);
@@ -249,10 +228,12 @@ const error = ref(null);
 const aiInsight = ref(null); // AI-generated summary
 const aiLoading = ref(true); // Loading state for AI summary
 const aiError = ref(null); // Error state for AI summary
+const news = ref(null);
 
 const fetchCompanyData = async () => {
   try {
     const response = await axiosInstance.get(`/get-esg-data/${symbol}/`);
+    console.log("Backend Response:", response.data);
     console.log("API Response:", response.data);
 
     companyData.value = response.data;
@@ -280,11 +261,52 @@ const fetchPeerScores = async () => {
 
 const fetchLatestNews = async () => {
   try {
-    const response = await axiosInstance.get(`/fetch-esg-news/${symbol}/`);
-    latestNews.value = response.data || []; // Fallback to empty array
-    console.log("Latest news fetched:", latestNews.value);
+    const response = await axiosInstance.get(`/fetch-esg-news/?company_name=${companyData.value["Company Name"]}`);
+    if (response.data.status === "processing" && response.data.task_id) {
+      const taskId = response.data.task_id;
+      pollNewsStatus(taskId);
+      return;
+    }
+    // If completed immediately (cached), handle as before:
+    const articles = response.data.result?.articles || [];
+    latestNews.value = articles.map((article) => ({
+      title: article.title || "No title available",
+      description: article.description || "No description available",
+      url: article.url || "#",
+      source: article.source || "Unknown source",
+      publishedAt: article.date
+        ? new Date(article.date).toLocaleDateString()
+        : "Unknown date",
+    }));
   } catch (error) {
-    console.warn("Latest News backend not implemented or unavailable.");
+    console.warn("Failed to fetch latest news:", error);
+    latestNews.value = [];
+  }
+};
+
+const pollNewsStatus = async (taskId) => {
+  try {
+    const response = await axiosInstance.get(`/check-esg-news-status/${taskId}/`);
+    if (response.data.status === "processing") {
+      setTimeout(() => pollNewsStatus(taskId), 3000);
+    } else if (response.data.status === "completed") {
+      const articles = response.data.result?.articles || [];
+      latestNews.value = articles.map((article) => ({
+        title: article.title || "No title available",
+        description: article.description || "No description available",
+        url: article.url || "#",
+        source: article.source || "Unknown source",
+        publishedAt: article.date
+          ? new Date(article.date).toLocaleDateString()
+          : "Unknown date",
+      }));
+    } else if (response.data.status === "error") {
+      console.error("Error fetching news:", response.data.message);
+      latestNews.value = [];
+    }
+  } catch (error) {
+    console.warn("Failed to poll news status:", error);
+    latestNews.value = [];
   }
 };
 
@@ -301,12 +323,36 @@ const fetchIndustryBenchmark = async () => {
 const fetchAISummary = async () => {
   try {
     aiLoading.value = true;
-    const response = await axiosInstance.post("/generate-esg-insight/", { symbol });
-    aiInsight.value = response.data.result; // Use the structured response
+    const response = await axiosInstance.post("/generate-esg-insight/", {
+      companyData: companyData.value,
+    });
+    if (response.data.status === "processing" && response.data.task_id) {
+      pollAIInsightStatus(response.data.task_id);
+      return;
+    }
+    aiInsight.value = response.data.result;
+    aiLoading.value = false;
   } catch (error) {
     console.error("Error fetching AI summary:", error);
     aiError.value = "Unable to generate ESG insight.";
-  } finally {
+    aiLoading.value = false;
+  }
+};
+
+const pollAIInsightStatus = async (taskId) => {
+  try {
+    const response = await axiosInstance.get(`/check-ai-insight-status/${taskId}/`);
+    if (response.data.status === "processing") {
+      setTimeout(() => pollAIInsightStatus(taskId), 3000);
+    } else if (response.data.status === "completed") {
+      aiInsight.value = response.data.result;
+      aiLoading.value = false;
+    } else if (response.data.status === "error") {
+      aiError.value = response.data.message || "Unable to generate ESG insight.";
+      aiLoading.value = false;
+    }
+  } catch (error) {
+    aiError.value = "Unable to generate ESG insight.";
     aiLoading.value = false;
   }
 };

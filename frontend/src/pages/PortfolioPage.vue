@@ -65,6 +65,9 @@
                 </div>
               </li>
             </ul>
+            <div v-else-if="!searchResults.length && searchQuery" class="no-results-message">
+              No results found. Currently, we only support companies listed on the USA, Japan, and UK stock exchanges.
+            </div>
             <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
           </div>
 
@@ -386,6 +389,11 @@ const uploadFile = async () => {
 
 .error-message {
   color: red;
+  margin-top: 10px;
+}
+
+.no-results-message {
+  color: #666;
   margin-top: 10px;
 }
 

@@ -24,6 +24,8 @@ DEBUG = os.environ.get('DEBUG') == 'True'
 
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 
+ALPHA_VANTAGE_API_KEY = os.environ.get('ALPHA_VANTAGE_API_KEY')
+
 ALLOWED_HOSTS = ['*']
 
 # Application definition

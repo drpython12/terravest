@@ -1,6 +1,6 @@
 <template>
   <div class="max-w-4xl mx-auto p-6 bg-white shadow-xl rounded-2xl space-y-6">
-    <h1 class="text-2xl font-semibold text-gray-800">AI-Generated ESG Insight</h1>
+    <h1 class="text-2xl font-semibold text-gray-800">AI ESG Report</h1>
 
     <!-- Loading -->
     <div v-if="loading" class="text-center py-4 text-gray-500">
@@ -36,13 +36,13 @@
     <div v-if="insight" class="space-y-6 text-gray-800">
       <!-- Summary -->
       <section>
-        <h2 class="text-lg font-semibold">📋 Summary</h2>
+        <h2 class="text-lg font-semibold">Summary</h2>
         <p>{{ insight.summary || "No summary available." }}</p>
       </section>
 
       <!-- ESG Scores -->
       <section>
-        <h2 class="text-lg font-semibold">📊 ESG Scores</h2>
+        <h2 class="text-lg font-semibold">ESG Scores</h2>
         <ul class="space-y-2">
           <li>
             <strong>Environmental:</strong> {{ insight.esgScores.Environmental.score }} - 
@@ -65,14 +65,14 @@
 
       <!-- Controversies -->
       <section>
-        <h2 class="text-lg font-semibold">⚠️ Controversies</h2>
+        <h2 class="text-lg font-semibold">Controversies</h2>
         <p>{{ insight.controversies.details || "No controversies reported." }}</p>
         <p class="text-gray-600">{{ insight.controversies.interpretation }}</p>
       </section>
 
       <!-- Alignment with Preferences -->
       <section>
-        <h2 class="text-lg font-semibold">🎯 Alignment with Preferences</h2>
+        <h2 class="text-lg font-semibold">Alignment with Preferences</h2>
         <p><strong>Strategy:</strong> {{ insight.alignment.strategy }}</p>
         <div>
           <strong>Strengths:</strong>
