@@ -123,11 +123,9 @@
           <div>
             <div v-if="error" class="text-red-500">{{ error }}</div>
             <Controversies
-              v-if="!error && Object.keys(controversyData).length && controversyCategories.length"
               :controversyData="controversyData"
               :controversyCategories="controversyCategories"
             />
-            <div v-else-if="!error" class="text-gray-500">Loading controversies data...</div>
           </div>
         </div>
         <div v-else-if="activeTab === 'Peer Scores'">
