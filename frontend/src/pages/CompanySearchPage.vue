@@ -166,7 +166,6 @@ watch(
     searching.value = true;
     searchError.value = "";
     try {
-      // Adjust the URL if your backend is on a different path
       const response = await axios.get(`/search-company/?query=${encodeURIComponent(newQuery)}`);
       searchResults.value = response.data.results || [];
     } catch (err) {
