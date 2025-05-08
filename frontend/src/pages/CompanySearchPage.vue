@@ -33,7 +33,7 @@
                 {{ ticker.fullExchangeName }} ({{ ticker.region }})
               </p>
               <p class="text-sm text-gray-500">
-                Price: {{ ticker.regularMarketPrice }}
+                Price: ${{ ticker.regularMarketPrice }}
               </p>
               <p
                 :class="[
@@ -64,47 +64,11 @@
         </div>
       </section>
     </div>
-
-    <!-- Predefined Screeners -->
-    <div class="space-y-12">
-      <section v-for="screener in filteredScreeners" :key="screener.id">
-        <h2 class="text-2xl font-semibold mb-4">{{ screener.title }}</h2>
-        <p class="text-sm text-gray-500 mb-4">{{ screener.description }}</p>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div
-            v-for="company in screener.companies"
-            :key="company.symbol"
-            class="bg-white shadow-lg rounded-2xl p-6 flex flex-col justify-between"
-          >
-            <div>
-              <h3 class="text-lg font-medium text-gray-800">
-                {{ company.name }}
-              </h3>
-              <p class="text-sm text-gray-500">{{ company.symbol }}</p>
-            </div>
-            <div class="mt-4 flex justify-between items-center">
-              <button
-                @click="addToPortfolio(company.symbol)"
-                class="text-sm text-blue-600 hover:underline"
-              >
-                Add to Portfolio
-              </button>
-              <button
-                @click="goToCompanyPage(company.symbol)"
-                class="text-sm text-blue-600 hover:underline"
-              >
-                View Details
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 
@@ -112,6 +76,9 @@ const router = useRouter();
 const searchQuery = ref("");
 const screeners = ref([]);
 const trendingTickers = ref([]);
+const searchResults = ref([]);
+const searching = ref(false);
+const searchError = ref("");
 
 // Fetch predefined screeners from Yahoo Finance API
 const fetchScreeners = async () => {
@@ -186,6 +153,30 @@ const goToCompanyPage = (symbol) => {
 const addToPortfolio = (symbol) => {
   console.log(`Added ${symbol} to portfolio`);
 };
+
+// Watch searchQuery and fetch company results from backend
+watch(
+  searchQuery,
+  async (newQuery) => {
+    if (!newQuery || newQuery.length < 2) {
+      searchResults.value = [];
+      searchError.value = "";
+      return;
+    }
+    searching.value = true;
+    searchError.value = "";
+    try {
+      // Adjust the URL if your backend is on a different path
+      const response = await axios.get(`/search-company/?query=${encodeURIComponent(newQuery)}`);
+      searchResults.value = response.data.results || [];
+    } catch (err) {
+      searchResults.value = [];
+      searchError.value = "Error searching companies.";
+    } finally {
+      searching.value = false;
+    }
+  }
+);
 
 onMounted(() => {
   fetchScreeners();

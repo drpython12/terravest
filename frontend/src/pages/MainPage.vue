@@ -2,7 +2,7 @@
   <div>
     <!-- Hero Section -->
     <section class="hero">
-      <div class="container hero-container">
+      <div class="hero-container">
         <h1>Empower Your Sustainable Investments</h1>
         <p>AI-driven ESG analysis for transparent and personalized investment decisions.</p>
         <button class="cta">Get Started</button>

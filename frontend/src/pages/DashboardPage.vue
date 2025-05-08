@@ -76,7 +76,6 @@ import { ref, onMounted } from "vue";
 import { useAuthStore } from "@/store/useAuthStore";
 import ESGPieChart from "@/components/ESGPieChart.vue";
 import ESGLineChart from "@/components/ESGLineChart.vue";
-import NewsFeed from "@/components/NewsFeed.vue";
 import InvestmentSuggestions from "@/components/InvestmentSuggestions.vue";
 import TopPortfolioHoldings from "@/components/TopPortfolioHoldings.vue";
 import axios from "axios";

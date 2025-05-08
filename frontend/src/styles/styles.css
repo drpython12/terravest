@@ -11,11 +11,12 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
   
-  /* Container centering */
+  /* Responsive Container */
   .container {
+    width: 100%;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 20px;
+    padding: 0 5vw; /* Use relative padding for better scaling */
   }
   
   /* Header Styles */
@@ -64,42 +65,55 @@
     color: #000;
   }
   
-  /* Hero Section Styles */
+  /* Responsive Hero Section */
   .hero {
     background: url('./assets/home-page-background.jpg') center/cover no-repeat;
-    height: 80vh;
+    width: 100vw;
+    min-width: 100vw;
+    margin-left: calc(50% - 50vw);
+    min-height: 60vh;
+    height: auto;
     display: flex;
     align-items: center;
     text-align: center;
     color: #fff;
+    padding: 40px 0;
   }
+
   .hero-container {
+    margin: 0 auto;
+    width: 100%;
+    max-width: 900px;
+    padding: 0 5vw;
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 100%;
   }
+
   .hero h1 {
-    font-size: 3em;
+    font-size: 2.5em;
     margin-bottom: 20px;
     text-shadow: 1px 1px 5px rgba(0, 0, 0, 0.3);
   }
+
   .hero p {
-    font-size: 1.2em;
+    font-size: 1.1em;
     margin-bottom: 30px;
-    max-width: 600px;
+    max-width: 90vw;
     text-shadow: 1px 1px 5px rgba(0, 0, 0, 0.3);
   }
+
   .cta {
     background: #007aff;
     border: none;
-    padding: 15px 30px;
+    padding: 12px 24px;
     color: #fff;
     font-size: 1em;
     border-radius: 25px;
     cursor: pointer;
     transition: background 0.3s ease;
   }
+
   .cta:hover {
     background: #005bb5;
   }
@@ -164,4 +178,31 @@ html, body {
   display: flex;
   flex-direction: column;
   justify-content: center; /* Ensures content is vertically centered if short */
+}
+
+/* Responsive Typography and Layout */
+@media (max-width: 900px) {
+  .hero h1 {
+    font-size: 2em;
+  }
+  .hero-container {
+    max-width: 100%;
+    padding: 0 3vw;
+  }
+}
+
+@media (max-width: 600px) {
+  .hero {
+    min-height: 40vh;
+    padding: 20px 0;
+  }
+  .hero h1 {
+    font-size: 1.3em;
+  }
+  .hero p {
+    font-size: 1em;
+  }
+  .container {
+    padding: 0 2vw;
+  }
 }

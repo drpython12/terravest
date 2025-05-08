@@ -73,29 +73,27 @@
 
       <!-- Industry Benchmark -->
       <section class="bg-white shadow-lg rounded-2xl p-6 flex flex-col items-center justify-center h-[450px]">
-        <h2 class="text-lg font-semibold mb-4">Industry Benchmark</h2>
-        <div v-if="benchmark">
-          <ul class="space-y-2">
-            <li class="flex justify-between text-gray-700">
-              <span>Environmental</span>
-              <span class="font-medium">{{ benchmark.environmental.toFixed(2) }}</span>
-            </li>
-            <li class="flex justify-between text-gray-700">
-              <span>Social</span>
-              <span class="font-medium">{{ benchmark.social.toFixed(2) }}</span>
-            </li>
-            <li class="flex justify-between text-gray-700">
-              <span>Governance</span>
-              <span class="font-medium">{{ benchmark.governance.toFixed(2) }}</span>
-            </li>
-            <li class="flex justify-between text-gray-700">
-              <span>Overall ESG</span>
-              <span class="font-medium">{{ benchmark.esg.toFixed(2) }}</span>
-            </li>
-          </ul>
-        </div>
+        <h2 class="text-lg font-semibold mb-4">Industry Benchmark vs. Company Scores</h2>
+        <BarChart
+          v-if="benchmark && kpiDrilldownData.Environment && kpiDrilldownData.Social && kpiDrilldownData.Governance"
+          :data="{
+            labels: ['Environmental', 'Social', 'Governance', 'Overall ESG'],
+            companyScores: [
+              kpiDrilldownData.Environment.score || 0,
+              kpiDrilldownData.Social.score || 0,
+              kpiDrilldownData.Governance.score || 0,
+              companyData['Overall ESG Score'] || 0
+            ],
+            benchmarkScores: [
+              benchmark.environmental || 0,
+              benchmark.social || 0,
+              benchmark.governance || 0,
+              benchmark.esg || 0
+            ]
+          }"
+        />
         <div v-else class="h-full w-full bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-          Industry Benchmark not available.
+          Loading benchmark or company scores...
         </div>
       </section>
     </div>
@@ -205,6 +203,7 @@ import FinancialDetails from "@/components/FinancialDetails.vue";
 import Controversies from "@/components/Controversies.vue";
 import AI from "@/components/AI.vue";
 import NewsFeed from "@/components/NewsFeed.vue";
+import BarChart from "@/components/BarChart.vue"; // Import the BarChart component
 import { Chart, registerables } from "chart.js";
 
 Chart.register(...registerables);
@@ -212,10 +211,22 @@ Chart.register(...registerables);
 const route = useRoute();
 const symbol = route.params.symbol; // Dynamically fetch the symbol from the route
 
-const companyData = ref({});
+const companyData = ref({
+  "ESG Scores": {
+    environmental: 70.5,
+    social: 65.3,
+    governance: 78.9,
+    esg: 71.2,
+  },
+}); // Mock company data for testing
 const activeSection = ref("CompanyProfile"); // Toggle between sections
 const peers = ref([]); // Default empty array for Peer Scores
-const benchmark = ref(null); // Default null for Industry Benchmark
+const benchmark = ref({
+  environmental: 75.32,
+  social: 68.45,
+  governance: 80.12,
+  esg: 74.63,
+}); // Mock data for testing
 const tabs = ["KPI Breakdown", "Controversies", "Peer Scores", "Latest News"]; // Tabs for the second row
 const activeTab = ref(tabs[0]);
 const kpiDrilldownData = ref({});
@@ -310,16 +321,6 @@ const pollNewsStatus = async (taskId) => {
   }
 };
 
-const fetchIndustryBenchmark = async () => {
-  try {
-    const response = await axiosInstance.get(`/fetch-industry-benchmark/${symbol}/`);
-    benchmark.value = response.data || null; // Fallback to null
-    console.log("Industry benchmark fetched:", benchmark.value);
-  } catch (error) {
-    console.warn("Industry Benchmark backend not implemented or unavailable.");
-  }
-};
-
 const fetchAISummary = async () => {
   try {
     aiLoading.value = true;
@@ -377,7 +378,8 @@ onMounted(async () => {
     await fetchAISummary(); // Fetch AI summary after company data
     fetchPeerScores(); // Non-blocking
     fetchLatestNews(); // Non-blocking
-    fetchIndustryBenchmark(); // Non-blocking
+    // Commenting out the fetchIndustryBenchmark call to use mock data
+    // fetchIndustryBenchmark(); 
   } catch (error) {
     console.error("Error initializing page:", error);
   }

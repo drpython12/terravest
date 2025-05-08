@@ -5,7 +5,7 @@ class User(AbstractUser):
     """
     Custom user model extending the default Django AbstractUser.
     """
-    username = None  # Remove the username field
+    username = None
     first_name = models.CharField(max_length=30)
     middle_name = models.CharField(max_length=30, blank=True, null=True)
     last_name = models.CharField(max_length=30)
@@ -15,7 +15,7 @@ class User(AbstractUser):
     password = models.CharField(max_length=128)
     preferences_completed = models.BooleanField(default=False)
 
-    USERNAME_FIELD = 'email'  # Use email as the username field
+    USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name', 'country', 'date_of_birth']
 
     groups = models.ManyToManyField(
