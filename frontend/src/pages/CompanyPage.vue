@@ -168,7 +168,7 @@
 
     <!-- ChatGPT Q&A -->
     <div class="bg-white shadow-lg rounded-2xl p-6">
-      <h2 class="text-lg font-semibold mb-4">Ask ChatGPT</h2>
+      <h2 class="text-lg font-semibold mb-4">Ask TerraVest AI</h2>
       <textarea
         v-model="chatInput"
         placeholder="Ask a question about this company..."
