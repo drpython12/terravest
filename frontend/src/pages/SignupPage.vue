@@ -147,7 +147,7 @@ export default {
       };
 
       try {
-        const response = await axios.post('http://localhost:8000/account/signup/', data);
+        const response = await axios.post('api/account/signup/', data);
         if (response.data.success) {
           this.successMessage = response.data.message;
           this.backendError = "";
@@ -174,7 +174,7 @@ export default {
       if (this.emailError || this.passwordError) return;
 
       try {
-        const response = await axios.post(`http://localhost:8000/account/login/`, { email: this.email, password: this.password }, {
+        const response = await axios.post(`api/account/login/`, { email: this.email, password: this.password }, {
           headers: {
             'X-CSRFToken': getCookie('csrftoken') // Assuming you have a function to get the CSRF token
           }

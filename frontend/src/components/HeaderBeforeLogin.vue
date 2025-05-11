@@ -1,10 +1,10 @@
 <template>
-  <header class="header">
-    <div class="container header-container">
+  <header class="header w-full">
+    <div class="container header-container mx-auto flex items-center justify-between">
       <router-link to="/" class="flex items-center logo-container">
         <span class="logo-text">TerraVest</span>
       </router-link>
-      <nav class="nav">
+      <nav class="nav flex items-center gap-6">
         <a href="#" aria-label="Features">Features</a>
         <a href="#" aria-label="About">About</a>
         <a href="#" aria-label="Contact">Contact</a>
@@ -30,9 +30,6 @@ export default {
   z-index: 100;
 }
 .header-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   padding: 20px 0;
 }
 
@@ -49,10 +46,6 @@ export default {
 }
 
 /* Navigation */
-.nav {
-  display: flex;
-  gap: 30px;
-}
 .nav a {
   text-decoration: none;
   color: #555;

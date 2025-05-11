@@ -1,45 +1,47 @@
 <template>
-  <div class="container">
-    <h2 class="title">Sign in to the TerraVest Portal</h2>
-    
-    <!-- Email input with arrow -->
-    <div class="input-container">
-      <input 
-        v-model="email" 
-        type="text" 
-        class="input-box" 
-        placeholder="Email or Phone Number" 
-        @blur="validateEmail"
-        aria-label="Email or Phone Number"
-      />
-      <span v-if="showEmailArrow" class="arrow-icon" @click="checkUserExists">➜</span>
-    </div>
-    <p v-if="emailError" class="error-message">⚠ Please enter a valid email address.</p>
-    <p v-if="userNotFoundError" class="error-message">⚠ This email is not registered. <router-link to="/signup">Sign up now.</router-link></p>
+  <div class="flex items-center justify-center min-h-screen bg-white">
+    <div class="container">
+      <h2 class="title">Sign in to the TerraVest Portal</h2>
+      
+      <!-- Email input with arrow -->
+      <div class="input-container">
+        <input 
+          v-model="email" 
+          type="text" 
+          class="input-box" 
+          placeholder="Email or Phone Number" 
+          @blur="validateEmail"
+          aria-label="Email or Phone Number"
+        />
+        <span v-if="showEmailArrow" class="arrow-icon" @click="checkUserExists">➜</span>
+      </div>
+      <p v-if="emailError" class="error-message">⚠ Please enter a valid email address.</p>
+      <p v-if="userNotFoundError" class="error-message">⚠ This email is not registered. <router-link to="/signup">Sign up now.</router-link></p>
 
-    <!-- Password input with arrow -->
-    <div class="input-container" v-if="showPassword">
-      <input 
-        v-model="password" 
-        type="password" 
-        class="input-box" 
-        placeholder="Password"
-        @blur="validatePassword"
-        aria-label="Password"
-      />
-      <span v-if="showPasswordArrow" class="arrow-icon" @click="loginUser">➜</span>
-    </div>
-    <p v-if="passwordError" class="error-message">⚠ Password must be entered.</p>
-    <p v-if="loginError" class="error-message">⚠ {{ loginError }}</p>
-    <p v-if="successMessage" class="success-message">🎉 {{ successMessage }}</p>
+      <!-- Password input with arrow -->
+      <div class="input-container" v-if="showPassword">
+        <input 
+          v-model="password" 
+          type="password" 
+          class="input-box" 
+          placeholder="Password"
+          @blur="validatePassword"
+          aria-label="Password"
+        />
+        <span v-if="showPasswordArrow" class="arrow-icon" @click="loginUser">➜</span>
+      </div>
+      <p v-if="passwordError" class="error-message">⚠ Password must be entered.</p>
+      <p v-if="loginError" class="error-message">⚠ {{ loginError }}</p>
+      <p v-if="successMessage" class="success-message">🎉 {{ successMessage }}</p>
 
-    <div class="remember-me">
-      <input type="checkbox" id="remember" v-model="rememberMe" />
-      <label for="remember">&nbsp;&nbsp;Remember me</label>
-    </div>
-    <div class="links">
-      <a href="#">Forgotten your password?</a><br />
-      <span>Do not have a TerraVest Account? <router-link to="/signup">Create yours now.</router-link></span>
+      <div class="remember-me">
+        <input type="checkbox" id="remember" v-model="rememberMe" />
+        <label for="remember">&nbsp;&nbsp;Remember me</label>
+      </div>
+      <div class="links">
+        <a href="#">Forgotten your password?</a><br />
+        <span>Do not have a TerraVest Account? <router-link to="/signup">Create yours now.</router-link></span>
+      </div>
     </div>
   </div>
 </template>
@@ -74,7 +76,7 @@ export default {
     async checkUserExists() {
       this.loading = true;
       try {
-        const response = await axiosInstance.post('/account/check-user/', { email: this.email }); // Updated URL }); // Updated URL
+        const response = await axiosInstance.post('/account/check-user/', { email: this.email });
         if (response.data.exists) {
           this.showPassword = true;
           this.userNotFoundError = false;
@@ -111,7 +113,7 @@ export default {
         this.successMessage = "Login successful! Redirecting...";
         setTimeout(() => window.location.href = redirectUrl, 2000);
       } catch (error) {
-        console.error("Login error:", error); // Add console log for debugging
+        console.error("Login error:", error);
         if (error.response && error.response.data.errors) {
           this.loginError = error.response.data.errors.login || "Invalid email or password.";
         } else {

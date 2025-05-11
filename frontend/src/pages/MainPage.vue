@@ -1,8 +1,8 @@
 <template>
-  <div>
+  <div class="flex flex-col items-center justify-center min-h-screen">
     <!-- Hero Section -->
-    <section class="hero">
-      <div class="hero-container">
+    <section class="hero w-full">
+      <div class="hero-container mx-auto text-center">
         <h1>Empower Your Sustainable Investments</h1>
         <p>AI-driven ESG analysis for transparent and personalized investment decisions.</p>
         <button class="cta">Get Started</button>
@@ -10,8 +10,8 @@
     </section>
 
     <!-- Features Section -->
-    <section class="features">
-      <div class="container features-container">
+    <section class="features w-full">
+      <div class="container features-container mx-auto">
         <div class="feature">
           <h2 class="feature-heading">Real-Time Insights</h2>
           <p>Live sentiment analysis and dynamic ESG scores to keep you ahead.</p>
@@ -50,6 +50,7 @@ export default {
 </script>
 
 <style scoped>
+/* Retain existing styles */
 .feature-heading {
   font-size: 1.75rem;
   color: white;
