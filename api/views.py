@@ -143,8 +143,11 @@ def login_view(request):
         user = authenticate(request, username=email, password=password)
         if user:
             login(request, user)
-            redirect_url = '/account/preferences/' if not user.preferences_completed else '/dashboard/'
-            return json_response({'success': True, 'redirect': redirect_url})
+            return json_response({
+                'success': True,
+                'redirect': '/account/preferences/' if not user.preferences_completed else '/dashboard/',
+                'preferences_completed': user.preferences_completed,
+            })
         else:
             errors['login'] = 'Invalid email or password.'
         return json_response({'success': False, 'errors': errors}, status=400)

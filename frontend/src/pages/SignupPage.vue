@@ -151,7 +151,9 @@ export default {
         if (response.data.success) {
           this.successMessage = response.data.message;
           this.backendError = "";
-          await this.loginUser();
+          setTimeout(() => {
+            this.$router.push('/login'); // Redirect to login page
+          }, 2000);
         }
       } catch (error) {
         if (error.response && error.response.data.errors) {

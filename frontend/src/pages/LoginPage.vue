@@ -109,9 +109,12 @@ export default {
       this.loading = true;
       try {
         const authStore = useAuthStore();
-        const redirectUrl = await authStore.login(this.email, this.password);
+        const response = await authStore.login(this.email, this.password);
+        const redirectUrl = response.preferences_completed ? '/dashboard' : '/account/preferences'; // Check preferences
         this.successMessage = "Login successful! Redirecting...";
-        setTimeout(() => window.location.href = redirectUrl, 2000);
+        setTimeout(() => {
+          window.location.href = redirectUrl; // Redirect based on preferences
+        }, 2000);
       } catch (error) {
         console.error("Login error:", error);
         if (error.response && error.response.data.errors) {
