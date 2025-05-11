@@ -397,18 +397,72 @@ def get_dashboard_data(request):
     user = request.user
     portfolio_stocks = PortfolioStock.objects.filter(user=user)
     stock_values, total_portfolio_value = calculate_portfolio_value(portfolio_stocks)
-    weighted_esg_score = calculate_weighted_esg_score(portfolio_stocks, stock_values, total_portfolio_value)
-    portfolio_performance = calculate_portfolio_performance(portfolio_stocks, total_portfolio_value)
-    esg_breakdown = calculate_esg_breakdown(portfolio_stocks)
-    top_holdings = get_top_holdings(portfolio_stocks)
-    esg_trends = get_weighted_esg_trends(portfolio_stocks, stock_values, total_portfolio_value)
+
+    # Calculate weighted ESG scores
+    weighted_esg_scores = {
+        "environmental": 0,
+        "social": 0,
+        "governance": 0,
+        "overall": 0,
+    }
+    esg_trends = {
+        "ESGScore": {},
+        "EnvironmentPillarScore": {},
+        "SocialPillarScore": {},
+        "GovernancePillarScore": {},
+    }
+
+    for stock in portfolio_stocks:
+        try:
+            company = ESGCompany.objects.filter(ticker=stock.symbol).first()
+            if not company:
+                continue
+
+            metrics = ESGMetric.objects.filter(company=company)
+            stock_value = stock_values.get(stock.symbol, 0)
+            weight = Decimal(stock_value) / Decimal(total_portfolio_value) if total_portfolio_value > 0 else 0
+
+            # Add weighted ESG scores
+            weighted_esg_scores["environmental"] += get_metric_score(metrics, "EnvironmentPillarScore") * weight
+            weighted_esg_scores["social"] += get_metric_score(metrics, "SocialPillarScore") * weight
+            weighted_esg_scores["governance"] += get_metric_score(metrics, "GovernancePillarScore") * weight
+            weighted_esg_scores["overall"] += get_metric_score(metrics, "ESGScore") * weight
+
+            # Add ESG trends
+            for metric in metrics:
+                year = metric.year
+                fieldname = metric.fieldname
+                if fieldname in esg_trends:
+                    if year not in esg_trends[fieldname]:
+                        esg_trends[fieldname][year] = 0
+                    esg_trends[fieldname][year] += metric.valuescore * weight
+
+        except Exception as e:
+            pass
+
+    # Format ESG trends for the frontend
+    formatted_esg_trends = {
+        "ESGScore": [{"year": year, "score": round(score, 2)} for year, score in esg_trends["ESGScore"].items()],
+        "EnvironmentPillarScore": [{"year": year, "score": round(score, 2)} for year, score in esg_trends["EnvironmentPillarScore"].items()],
+        "SocialPillarScore": [{"year": year, "score": round(score, 2)} for year, score in esg_trends["SocialPillarScore"].items()],
+        "GovernancePillarScore": [{"year": year, "score": round(score, 2)} for year, score in esg_trends["GovernancePillarScore"].items()],
+    }
+
+    # Normalize values
+    overall_esg_score = round(weighted_esg_scores["overall"], 0) if total_portfolio_value > 0 else None
+    portfolio_performance_change = round(calculate_portfolio_performance(portfolio_stocks, total_portfolio_value), 2)
+
     return json_response({
         "portfolio_value": float(total_portfolio_value),
-        "overall_esg_score": round(weighted_esg_score * 100, 0) if total_portfolio_value > 0 else None,
-        "portfolio_performance_change": round(portfolio_performance, 2),
-        "esg_breakdown": esg_breakdown,
-        "esg_trends": esg_trends,
-        "top_holdings": list(top_holdings),
+        "overall_esg_score": overall_esg_score,  # Rounded to a full number
+        "portfolio_performance_change": portfolio_performance_change,  # Rounded to 2 decimal places
+        "esg_breakdown": {
+            "environmental": round(weighted_esg_scores["environmental"] * 100, 2),
+            "social": round(weighted_esg_scores["social"] * 100, 2),
+            "governance": round(weighted_esg_scores["governance"] * 100, 2),
+        },
+        "esg_trends": formatted_esg_trends,
+        "top_holdings": list(get_top_holdings(portfolio_stocks)),
     })
 
 def calculate_portfolio_value(portfolio_stocks):
